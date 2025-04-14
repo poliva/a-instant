@@ -92,11 +92,21 @@ class KeyboardMonitor {
     
     private var triggerKey: TriggerKey {
         let keyString = UserDefaults.standard.string(forKey: UserDefaultsKeys.triggerKey) ?? TriggerKey.rightShift.rawValue
-        return TriggerKey.allCases.first { $0.rawValue == keyString } ?? .rightShift
+        let key = TriggerKey.allCases.first { $0.rawValue == keyString } ?? .rightShift
+        print("Getting trigger key: \(key.rawValue) with keyCode: \(key.keyCode)")
+        return key
     }
     
     func startMonitoring() {
         guard !isMonitoring else { return }
+        
+        // Check for accessibility permissions
+        if !AXIsProcessTrusted() {
+            print("Accessibility permissions not granted. Keyboard monitoring couldn't start.")
+            return
+        }
+        
+        print("Starting keyboard monitoring with trigger key: \(triggerKey.rawValue)")
         
         // Monitor for modifier key changes (like Shift, Command, etc.)
         flagsChangedMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
@@ -134,12 +144,14 @@ class KeyboardMonitor {
         guard isModifierKey(triggerKey) else { return }
         
         let keyCode = event.keyCode
+        print("Flag change detected - keyCode: \(keyCode), expected: \(triggerKey.keyCode)")
         
         // Check if the pressed key is our trigger key
         guard keyCode == triggerKey.keyCode else { return }
         
         // Determine if key was pressed or released by checking modifier flags
         let isKeyDown = event.modifierFlags.contains(triggerKey.modifierFlags)
+        print("Key \(isKeyDown ? "pressed" : "released")")
         
         // Only process key down events for double-tap detection
         if isKeyDown {
@@ -147,11 +159,15 @@ class KeyboardMonitor {
             let currentTime = NSDate().timeIntervalSince1970
             let timeDiff = currentTime - lastKeyPressTime
             
+            print("Time difference: \(timeDiff)")
+            
             // If key was pressed within 0.5 seconds of the last press, it's a double press
             if timeDiff < 0.5 && timeDiff > 0.05 { // Avoid accidental triggers if too quick
+                print("Double tap detected!")
                 // Check cooldown period
                 if currentTime - lastTriggerActivation > cooldownPeriod {
                     lastTriggerActivation = currentTime
+                    print("Activating trigger!")
                     DispatchQueue.main.async { [weak self] in
                         self?.onTriggerKeyDetected?()
                     }
@@ -166,15 +182,20 @@ class KeyboardMonitor {
         let keyCode = event.keyCode
         let modifiers = event.modifierFlags
         
+        print("Key down detected - keyCode: \(keyCode), expected: \(triggerKey.keyCode)")
+        
         if triggerKey.isComboKey {
+            print("Checking combo key - modifiers: \(modifiers), expected: \(triggerKey.modifierFlags)")
             // For combo keys (like Cmd+Shift+P), check for exact match
             if keyCode == triggerKey.keyCode && modifiers.contains(triggerKey.modifierFlags) {
+                print("Combo key match!")
                 // Trigger immediately for combo keys
                 let currentTime = NSDate().timeIntervalSince1970
                 
                 // Check cooldown period
                 if currentTime - lastTriggerActivation > cooldownPeriod {
                     lastTriggerActivation = currentTime
+                    print("Activating trigger!")
                     DispatchQueue.main.async { [weak self] in
                         self?.onTriggerKeyDetected?()
                     }
@@ -193,11 +214,15 @@ class KeyboardMonitor {
         let currentTime = NSDate().timeIntervalSince1970
         let timeDiff = currentTime - lastKeyPressTime
         
+        print("Time difference: \(timeDiff)")
+        
         // If key was pressed within 0.5 seconds of the last press, it's a double press
         if timeDiff < 0.5 && timeDiff > 0.05 { // Avoid accidental triggers if too quick
+            print("Double tap detected!")
             // Check cooldown period
             if currentTime - lastTriggerActivation > cooldownPeriod {
                 lastTriggerActivation = currentTime
+                print("Activating trigger!")
                 DispatchQueue.main.async { [weak self] in
                     self?.onTriggerKeyDetected?()
                 }
