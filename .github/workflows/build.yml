@@ -32,7 +32,8 @@ jobs:
       run: |
         mkdir -p ./artifacts
         cd build/Build/Products/Release
-        zip -r ../../../../artifacts/A-Instant.zip A-Instant.app
+        # Use ditto to create a zip archive that preserves attributes
+        ditto -c -k --sequesterRsrc --keepParent A-Instant.app ../../../../artifacts/A-Instant.zip
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
