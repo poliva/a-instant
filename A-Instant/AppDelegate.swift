@@ -327,6 +327,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             UserDefaultsKeys.triggerKey: TriggerKey.rightShift.rawValue,
             UserDefaultsKeys.aiProvider: AIProvider.openAI.rawValue,
             UserDefaultsKeys.ollamaEndpoint: "http://localhost:11434",
+            UserDefaultsKeys.autoLaunchOnStartup: true,
             "isFirstLaunch": true
         ]
         

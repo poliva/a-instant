@@ -17,6 +17,7 @@ struct UserDefaultsKeys {
     static let ollamaModel = "ollamaModel"
     static let savedPrompts = "savedPrompts"
     static let shortcuts = "shortcuts"
+    static let autoLaunchOnStartup = "autoLaunchOnStartup"
 }
 
 enum AIProvider: String, CaseIterable, Identifiable {

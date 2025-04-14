@@ -68,6 +68,26 @@ struct SettingsView: View {
                     .foregroundColor(.secondary)
             }
             
+            Divider()
+            
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Startup Options")
+                    .font(.headline)
+                
+                Toggle("Launch A-Instant when you log in", isOn: $viewModel.autoLaunchOnStartup)
+                    .padding(.top, 4)
+                
+                if #available(macOS 13.0, *) {
+                    Text("A-Instant will automatically start when you log in to your Mac")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Auto-launch requires macOS 13 or later")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+            }
+            
             Spacer()
         }
         .padding()

@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import ServiceManagement
 
 class SettingsViewModel: ObservableObject {
     @Published var selectedTriggerKey: TriggerKey = .rightShift
@@ -10,6 +11,7 @@ class SettingsViewModel: ObservableObject {
     @Published var groqKey: String = ""
     @Published var deepSeekKey: String = ""
     @Published var ollamaEndpoint: String = "http://localhost:11434"
+    @Published var autoLaunchOnStartup: Bool = true
     
     @Published var openAIModel: String = ""
     @Published var anthropicModel: String = ""
@@ -64,7 +66,7 @@ class SettingsViewModel: ObservableObject {
             do {
                 savedPrompts = try JSONDecoder().decode([SavedPrompt].self, from: data)
             } catch {
-                print("Error loading saved prompts: \(error)")
+                Logger.shared.log("Error loading saved prompts: \(error)")
                 savedPrompts = []
             }
         }
@@ -73,6 +75,12 @@ class SettingsViewModel: ObservableObject {
         if savedPrompts.isEmpty {
             createDefaultPrompts()
         }
+        
+        // Load auto-launch setting, defaulting to true if not set
+        autoLaunchOnStartup = UserDefaults.standard.object(forKey: UserDefaultsKeys.autoLaunchOnStartup) as? Bool ?? true
+        
+        // Apply auto-launch setting
+        updateAutoLaunchStatus()
         
         // Initial list of available models for the selected provider
         refreshModelList()
@@ -106,8 +114,14 @@ class SettingsViewModel: ObservableObject {
             let data = try JSONEncoder().encode(savedPrompts)
             UserDefaults.standard.set(data, forKey: UserDefaultsKeys.savedPrompts)
         } catch {
-            print("Error saving prompts: \(error)")
+            Logger.shared.log("Error saving prompts: \(error)")
         }
+        
+        // Save auto-launch setting
+        UserDefaults.standard.set(autoLaunchOnStartup, forKey: UserDefaultsKeys.autoLaunchOnStartup)
+        
+        // Apply auto-launch setting
+        updateAutoLaunchStatus()
     }
     
     func refreshModelList() {
@@ -257,5 +271,33 @@ class SettingsViewModel: ObservableObject {
         
         // Save the default prompts
         saveSettings()
+    }
+    
+    // Function to update login item status
+    private func updateAutoLaunchStatus() {
+        if #available(macOS 13.0, *) {
+            let bundleIdentifier = Bundle.main.bundleIdentifier ?? ""
+            
+            do {
+                let service = SMAppService.mainApp
+                
+                if autoLaunchOnStartup {
+                    if service.status != .enabled {
+                        try service.register()
+                        Logger.shared.log("Auto-launch enabled for the application")
+                    }
+                } else {
+                    if service.status == .enabled {
+                        try service.unregister()
+                        Logger.shared.log("Auto-launch disabled for the application")
+                    }
+                }
+            } catch {
+                Logger.shared.log("Failed to update login item status: \(error)")
+            }
+        } else {
+            // This feature requires macOS 13+
+            Logger.shared.log("Auto-launch functionality requires macOS 13+")
+        }
     }
 } 
