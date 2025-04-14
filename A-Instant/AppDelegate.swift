@@ -28,6 +28,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Register default settings if they don't exist
         registerDefaultSettings()
         
+        // Check for accessibility permissions
+        checkAccessibilityPermissions()
+        
         // Start keyboard monitoring after a short delay to avoid early crashes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.setupKeyboardMonitoring()
@@ -38,6 +41,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.openSettings()
                 UserDefaults.standard.set(false, forKey: "isFirstLaunch")
+            }
+        }
+    }
+    
+    private func checkAccessibilityPermissions() {
+        // First check without prompting
+        if !AXIsProcessTrusted() {
+            // Only now show the prompt if needed
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Permissions Required"
+            alert.informativeText = "A-Instant needs accessibility permissions to monitor keyboard input and manipulate text. Please grant permissions in System Settings > Privacy & Security > Accessibility."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Open Settings")
+            alert.addButton(withTitle: "Later")
+            
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                let prefPaneURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+                NSWorkspace.shared.open(prefPaneURL)
             }
         }
     }
@@ -146,6 +168,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func setupKeyboardMonitoring() {
         keyboardMonitor = KeyboardMonitor()
         keyboardMonitor?.onTriggerKeyDetected = { [weak self] in
+            print("Trigger key detected, showing prompt window")
             DispatchQueue.main.async {
                 self?.showPromptWindow()
             }
@@ -153,6 +176,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         // Start the keyboard monitoring
         keyboardMonitor?.startMonitoring()
+        
+        // Log the current trigger key setting
+        let keyString = UserDefaults.standard.string(forKey: UserDefaultsKeys.triggerKey) ?? "default"
+        print("Current trigger key setting: \(keyString)")
     }
     
     private func registerDefaultSettings() {
