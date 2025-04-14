@@ -1,0 +1,261 @@
+import Foundation
+import Combine
+
+class SettingsViewModel: ObservableObject {
+    @Published var selectedTriggerKey: TriggerKey = .rightShift
+    @Published var selectedProvider: AIProvider = .openAI
+    @Published var openAIKey: String = ""
+    @Published var anthropicKey: String = ""
+    @Published var googleKey: String = ""
+    @Published var groqKey: String = ""
+    @Published var deepSeekKey: String = ""
+    @Published var ollamaEndpoint: String = "http://localhost:11434"
+    
+    @Published var openAIModel: String = ""
+    @Published var anthropicModel: String = ""
+    @Published var googleModel: String = ""
+    @Published var groqModel: String = ""
+    @Published var deepSeekModel: String = ""
+    @Published var ollamaModel: String = ""
+    
+    @Published var availableModels: [String] = []
+    @Published var isLoadingModels: Bool = false
+    @Published var modelLoadError: String? = nil
+    @Published var savedPrompts: [SavedPrompt] = []
+    
+    private var cancellables = Set<AnyCancellable>()
+    private let aiService = AIService()
+    
+    init() {
+        loadSettings()
+    }
+    
+    func loadSettings() {
+        // Load trigger key
+        if let keyString = UserDefaults.standard.string(forKey: UserDefaultsKeys.triggerKey),
+           let key = TriggerKey.allCases.first(where: { $0.rawValue == keyString }) {
+            selectedTriggerKey = key
+        }
+        
+        // Load selected provider
+        if let providerString = UserDefaults.standard.string(forKey: UserDefaultsKeys.aiProvider),
+           let provider = AIProvider.allCases.first(where: { $0.rawValue == providerString }) {
+            selectedProvider = provider
+        }
+        
+        // Load API keys
+        openAIKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.openAIKey) ?? ""
+        anthropicKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.anthropicKey) ?? ""
+        googleKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.googleKey) ?? ""
+        groqKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.groqKey) ?? ""
+        deepSeekKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.deepSeekKey) ?? ""
+        ollamaEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
+        
+        // Load model selections
+        openAIModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.openAIModel) ?? ""
+        anthropicModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.anthropicModel) ?? ""
+        googleModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.googleModel) ?? ""
+        groqModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.groqModel) ?? ""
+        deepSeekModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.deepSeekModel) ?? ""
+        ollamaModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaModel) ?? ""
+        
+        // Load saved prompts
+        if let data = UserDefaults.standard.data(forKey: UserDefaultsKeys.savedPrompts) {
+            do {
+                savedPrompts = try JSONDecoder().decode([SavedPrompt].self, from: data)
+            } catch {
+                print("Error loading saved prompts: \(error)")
+                savedPrompts = []
+            }
+        }
+        
+        // Add default prompts if none exist
+        if savedPrompts.isEmpty {
+            createDefaultPrompts()
+        }
+        
+        // Initial list of available models for the selected provider
+        refreshModelList()
+    }
+    
+    func saveSettings() {
+        // Save trigger key
+        UserDefaults.standard.set(selectedTriggerKey.rawValue, forKey: UserDefaultsKeys.triggerKey)
+        
+        // Save selected provider
+        UserDefaults.standard.set(selectedProvider.rawValue, forKey: UserDefaultsKeys.aiProvider)
+        
+        // Save API keys
+        UserDefaults.standard.set(openAIKey, forKey: UserDefaultsKeys.openAIKey)
+        UserDefaults.standard.set(anthropicKey, forKey: UserDefaultsKeys.anthropicKey)
+        UserDefaults.standard.set(googleKey, forKey: UserDefaultsKeys.googleKey)
+        UserDefaults.standard.set(groqKey, forKey: UserDefaultsKeys.groqKey)
+        UserDefaults.standard.set(deepSeekKey, forKey: UserDefaultsKeys.deepSeekKey)
+        UserDefaults.standard.set(ollamaEndpoint, forKey: UserDefaultsKeys.ollamaEndpoint)
+        
+        // Save model selections
+        UserDefaults.standard.set(openAIModel, forKey: UserDefaultsKeys.openAIModel)
+        UserDefaults.standard.set(anthropicModel, forKey: UserDefaultsKeys.anthropicModel)
+        UserDefaults.standard.set(googleModel, forKey: UserDefaultsKeys.googleModel)
+        UserDefaults.standard.set(groqModel, forKey: UserDefaultsKeys.groqModel)
+        UserDefaults.standard.set(deepSeekModel, forKey: UserDefaultsKeys.deepSeekModel)
+        UserDefaults.standard.set(ollamaModel, forKey: UserDefaultsKeys.ollamaModel)
+        
+        // Save prompts
+        do {
+            let data = try JSONEncoder().encode(savedPrompts)
+            UserDefaults.standard.set(data, forKey: UserDefaultsKeys.savedPrompts)
+        } catch {
+            print("Error saving prompts: \(error)")
+        }
+    }
+    
+    func refreshModelList() {
+        isLoadingModels = true
+        modelLoadError = nil
+        
+        let apiKey: String
+        
+        switch selectedProvider {
+        case .openAI:
+            apiKey = openAIKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your OpenAI API key in the API tab"
+                isLoadingModels = false
+                return
+            }
+        case .anthropic:
+            apiKey = anthropicKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your Anthropic API key in the API tab"
+                isLoadingModels = false
+                return
+            }
+        case .google:
+            apiKey = googleKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your Google API key in the API tab"
+                isLoadingModels = false
+                return
+            }
+        case .groq:
+            apiKey = groqKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your Groq API key in the API tab"
+                isLoadingModels = false
+                return
+            }
+        case .deepSeek:
+            apiKey = deepSeekKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your DeepSeek API key in the API tab"
+                isLoadingModels = false
+                return
+            }
+        case .ollama:
+            apiKey = "" // Ollama doesn't use API keys
+        }
+        
+        aiService.fetchModels(provider: selectedProvider, apiKey: apiKey)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoadingModels = false
+                    
+                    if case .failure(let error) = completion {
+                        self?.modelLoadError = error.localizedDescription
+                        self?.availableModels = []
+                    }
+                },
+                receiveValue: { [weak self] models in
+                    self?.availableModels = models
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    var currentAPIKey: String {
+        switch selectedProvider {
+        case .openAI: return openAIKey
+        case .anthropic: return anthropicKey
+        case .google: return googleKey
+        case .groq: return groqKey
+        case .deepSeek: return deepSeekKey
+        case .ollama: return "" // Ollama doesn't use API keys
+        }
+    }
+    
+    var currentModel: String {
+        switch selectedProvider {
+        case .openAI: return openAIModel
+        case .anthropic: return anthropicModel
+        case .google: return googleModel
+        case .groq: return groqModel
+        case .deepSeek: return deepSeekModel
+        case .ollama: return ollamaModel
+        }
+    }
+    
+    func setCurrentModel(_ model: String) {
+        switch selectedProvider {
+        case .openAI:
+            openAIModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.openAIModel)
+        case .anthropic:
+            anthropicModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.anthropicModel)
+        case .google:
+            googleModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.googleModel)
+        case .groq:
+            groqModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.groqModel)
+        case .deepSeek:
+            deepSeekModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.deepSeekModel)
+        case .ollama:
+            ollamaModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.ollamaModel)
+        }
+    }
+    
+    // Adds default prompt templates when no prompts exist
+    private func createDefaultPrompts() {
+        let defaultPrompts: [(name: String, instruction: String)] = [
+            (
+                "Add emojis",
+                "Add fitting emojis at the end of key sentences or next to emotional words, but keep the overall tone natural. Do not overuse emojis or place them randomly."
+            ),
+            (
+                "Translate to Catalan",
+                "Translate the selected text into Catalan."
+            ),
+            (
+                "Shorten for Twitter",
+                "Condense the text so that it can be posted on Twitter (280 characters max). Prioritize keeping the original intent intact, but remove redundancy and fluff."
+            ),
+            (
+                "Make it sound formal",
+                "Rephrase the text in a professional and formal tone suitable for a workplace enviroment. Remove any slang or casual expressions."
+            ),
+            (
+                "Make it a casual text",
+                "Rewrite the selected text to sound like a modern, casual text message sent to a close friend. Include emojis and contractions as appropriate."
+            ),
+            (
+                "Add light humor",
+                "Add subtle humor to the text by inserting clever wordplay or light-hearted expressions. Do not change the meaning or make it into a joke."
+            )
+        ]
+        
+        savedPrompts = defaultPrompts.map { promptInfo in
+            SavedPrompt(
+                name: promptInfo.name,
+                promptText: promptInfo.instruction
+            )
+        }
+        
+        // Save the default prompts
+        saveSettings()
+    }
+} 
