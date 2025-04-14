@@ -32,6 +32,8 @@ jobs:
       run: |
         mkdir -p ./artifacts
         cd build/Build/Products/Release
+        # Ad-hoc sign the application
+        codesign --force --deep -s - A-Instant.app
         # Use ditto to create a zip archive that preserves attributes
         ditto -c -k --sequesterRsrc --keepParent A-Instant.app ../../../../artifacts/A-Instant.zip
 
