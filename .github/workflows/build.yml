@@ -30,6 +30,7 @@ jobs:
         CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
         CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
         KEYCHAIN_PASSWORD: ${{ github.run_id }}
+        CERTIFICATE_NAME: ${{ secrets.APPLE_CERTIFICATE_NAME }}
       run: |
         # Create keychain
         security create-keychain -p "${KEYCHAIN_PASSWORD}" build.keychain
@@ -42,6 +43,9 @@ jobs:
         security import certificate.p12 -k build.keychain -P "${CERTIFICATE_PASSWORD}" -T /usr/bin/codesign
         security set-key-partition-list -S apple-tool:,apple: -s -k "${KEYCHAIN_PASSWORD}" build.keychain
         
+        # Check if the certificate was imported correctly and find its identity
+        security find-identity -v -p codesigning build.keychain
+        
         # Clean up
         rm certificate.p12
 
@@ -53,15 +57,26 @@ jobs:
       if: github.event_name != 'pull_request'
       env:
         TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        CERTIFICATE_NAME: ${{ secrets.APPLE_CERTIFICATE_NAME }}
       run: |
         mkdir -p ./artifacts
         cd build/Build/Products/Release
         
+        # Find the Developer ID Application certificate identity
+        IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed -E 's/.*\) ([A-F0-9]+) ".*"/\1/')
+        
+        if [ -z "$IDENTITY" ]; then
+          echo "Error: No Developer ID Application certificate found in keychain"
+          exit 1
+        fi
+        
+        echo "Using certificate identity: $IDENTITY"
+        
         # Sign the app with entitlements
-        codesign --force --deep --options runtime --entitlements "${GITHUB_WORKSPACE}/A-Instant/A-Instant.entitlements" --sign "Developer ID Application: ${TEAM_ID}" A-Instant.app
+        codesign --force --deep --options runtime --entitlements "${GITHUB_WORKSPACE}/A-Instant/A-Instant.entitlements" --sign "$IDENTITY" A-Instant.app
         
         # Create a .pkg installer
-        productbuild --component A-Instant.app /Applications --sign "Developer ID Installer: ${TEAM_ID}" A-Instant.pkg
+        productbuild --component A-Instant.app /Applications --sign "$IDENTITY" A-Instant.pkg
         
         # Verify signature
         codesign --verify --verbose A-Instant.app

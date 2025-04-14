@@ -8,7 +8,6 @@ A-Instant is an AI-powered text assistant that enhances productivity by enabling
 - **Multiple AI Providers**: Supports OpenAI, Anthropic, Google, Groq, DeepSeek, and local models via Ollama
 - **Customizable Activation**: Choose your preferred trigger key (defaults to right shift)
 - **Prompt Library**: Save and reuse complex or frequently used prompts
-- **Automatic Updates**: Check GitHub releases for the latest version
 
 ## How It Works
 
@@ -29,11 +28,7 @@ A-Instant eliminates the need to switch between apps, copy/paste, and wait for r
 1. Download the latest release from the [Releases page](https://github.com/YOUR_USERNAME/a-instant/releases)
 2. Unzip the file (macOS usually does this automatically)
 3. Move the app to your Applications folder
-4. Opening an unsigned app:
-   - Open Terminal
-   - Run: `xattr -r -d com.apple.quarantine /Applications/A-Instant.app`
-   - This tells Gatekeeper to skip checking the application on launch and only needs to be done once after installation
-5. When prompted, grant accessibility permissions in System Settings > Privacy & Security > Accessibility
+4. When prompted, grant accessibility permissions in System Settings > Privacy & Security > Accessibility
 
 ## Usage
 
