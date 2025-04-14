@@ -75,15 +75,11 @@ jobs:
         # Sign the app with entitlements
         codesign --force --deep --options runtime --entitlements "${GITHUB_WORKSPACE}/A-Instant/A-Instant.entitlements" --sign "$IDENTITY" A-Instant.app
         
-        # Create a .pkg installer
-        productbuild --component A-Instant.app /Applications --sign "$IDENTITY" A-Instant.pkg
-        
         # Verify signature
         codesign --verify --verbose A-Instant.app
         
         # Create zip for GitHub release
         ditto -c -k --sequesterRsrc --keepParent A-Instant.app ../../../../artifacts/A-Instant.zip
-        cp A-Instant.pkg ../../../../artifacts/
 
     - name: Create Unsigned App Bundle (PR only)
       if: github.event_name == 'pull_request'
@@ -100,24 +96,32 @@ jobs:
         APPLE_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
         TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         APP_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-        API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-        API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
       run: |
         # Notarize the app
-        xcrun notarytool submit artifacts/A-Instant.pkg \
+        xcrun notarytool submit artifacts/A-Instant.zip \
           --apple-id "$APPLE_ID" \
           --team-id "$TEAM_ID" \
           --password "$APP_PASSWORD" \
           --wait
-          
+        
+        # Create a copy of the zip for notarization result
+        cp artifacts/A-Instant.zip artifacts/A-Instant-notarized.zip
+        
+        # Extract the app for stapling
+        mkdir -p artifacts/extracted
+        unzip -q artifacts/A-Instant.zip -d artifacts/extracted
+        
         # Staple the notarization ticket
-        xcrun stapler staple artifacts/A-Instant.pkg
+        xcrun stapler staple artifacts/extracted/A-Instant.app
         
         # Create final release zip after notarization
-        cd artifacts
-        ditto -c -k --sequesterRsrc --keepParent A-Instant.pkg A-Instant-notarized.zip
-        rm A-Instant.zip
-        mv A-Instant-notarized.zip A-Instant.zip
+        cd artifacts/extracted
+        ditto -c -k --sequesterRsrc --keepParent A-Instant.app ../../artifacts/A-Instant-notarized.zip
+        cd ../..
+        mv artifacts/A-Instant-notarized.zip artifacts/A-Instant.zip
+        
+        # Clean up
+        rm -rf artifacts/extracted
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -134,7 +138,6 @@ jobs:
         prerelease: false
         files: |
           artifacts/A-Instant.zip
-          artifacts/A-Instant.pkg
         name: A-Instant ${{ github.ref_name }}
         body: |
           A-Instant ${{ github.ref_name }}
