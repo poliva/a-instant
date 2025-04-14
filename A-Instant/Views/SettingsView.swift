@@ -178,6 +178,21 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
+                Button(action: {
+                    if let url = apiKeyManagementURL() {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 2) {
+                        Text("Get API Key")
+                            .font(.caption)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.accentColor)
+                
                 Button("Test Connection") {
                     viewModel.refreshModelList()
                 }
@@ -210,6 +225,21 @@ struct SettingsView: View {
                 Text("Enter your Ollama server endpoint (default: http://localhost:11434)")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                
+                Button(action: {
+                    if let url = apiKeyManagementURL() {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 2) {
+                        Text("Download Ollama")
+                            .font(.caption)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.accentColor)
                 
                 Button("Test Connection") {
                     viewModel.refreshModelList()
@@ -443,6 +473,23 @@ struct SettingsView: View {
             return $viewModel.deepSeekKey
         case .ollama:
             return .constant("")
+        }
+    }
+    
+    private func apiKeyManagementURL() -> URL? {
+        switch viewModel.selectedProvider {
+        case .openAI:
+            return URL(string: "https://platform.openai.com/api-keys")
+        case .anthropic:
+            return URL(string: "https://console.anthropic.com/settings/keys")
+        case .google:
+            return URL(string: "https://aistudio.google.com/app/apikeys")
+        case .groq:
+            return URL(string: "https://console.groq.com/keys")
+        case .deepSeek:
+            return URL(string: "https://platform.deepseek.com/api-keys")
+        case .ollama:
+            return URL(string: "https://ollama.com/download")
         }
     }
 } 
