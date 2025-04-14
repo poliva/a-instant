@@ -9,6 +9,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let pasteboardManager = PasteboardManager()
     private var preferencesWindow: NSWindow?
     private var logViewerWindow: NSWindow?
+    private var updateChecker = UpdateChecker()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Initialize logger and log app start
@@ -46,6 +47,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.openSettings()
                 UserDefaults.standard.set(false, forKey: "isFirstLaunch")
             }
+        }
+        
+        // Check for updates
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.checkForUpdates()
         }
         
         Logger.shared.log("Application initialization complete")
@@ -93,6 +99,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let menu = NSMenu()
         
         menu.addItem(NSMenuItem(title: "Show Prompt Window", action: #selector(showPromptWindowFromMenu), keyEquivalent: "p"))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Check for Updates", action: #selector(checkForUpdatesFromMenu), keyEquivalent: "u"))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem.separator())
@@ -333,6 +341,73 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         UserDefaults.standard.register(defaults: defaults)
         Logger.shared.log("Default settings registered")
+    }
+    
+    @objc func checkForUpdatesFromMenu() {
+        Logger.shared.log("Check for updates triggered from menu")
+        checkForUpdates(showNoUpdatesAlert: true)
+    }
+    
+    private func checkForUpdates(showNoUpdatesAlert: Bool = false) {
+        updateChecker.checkForUpdates { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let url):
+                if let updateURL = url {
+                    self.showUpdateAvailableAlert(updateURL: updateURL)
+                } else if showNoUpdatesAlert {
+                    self.showNoUpdatesAlert()
+                }
+            case .failure(let error):
+                Logger.shared.log("Update check failed: \(error.localizedDescription)")
+                // Only show error for manual checks
+                if showNoUpdatesAlert {
+                    self.showUpdateErrorAlert(error: error)
+                }
+            }
+        }
+    }
+    
+    private func showUpdateAvailableAlert(updateURL: URL) {
+        let alert = NSAlert()
+        alert.messageText = "A new version of A-Instant is available."
+        
+        // Get current and new version if possible
+        if let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            let newVersion = updateURL.lastPathComponent.replacingOccurrences(of: "v", with: "")
+            alert.informativeText = "Version \(newVersion) is available. You have \(currentVersion)."
+        } else {
+            alert.informativeText = "A newer version is available on GitHub."
+        }
+        
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Download Update")
+        alert.addButton(withTitle: "Later")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(updateURL)
+            Logger.shared.log("Opening update URL: \(updateURL)")
+        }
+    }
+    
+    private func showNoUpdatesAlert() {
+        let alert = NSAlert()
+        alert.messageText = "You're up to date!"
+        alert.informativeText = "A-Instant is currently on the latest version."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+    
+    private func showUpdateErrorAlert(error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "Update Check Failed"
+        alert.informativeText = "Could not check for updates. \(error.localizedDescription)"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
     
     // MARK: - NSWindowDelegate

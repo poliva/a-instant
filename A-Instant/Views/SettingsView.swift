@@ -409,7 +409,7 @@ struct SettingsView: View {
                 .font(.largeTitle)
                 .bold()
             
-            Text("Version 1.0")
+            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
                 .foregroundColor(.secondary)
             
             Divider()
