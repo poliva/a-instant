@@ -5,6 +5,7 @@ class PasteboardManager {
     private let simulateKeyPressQueue = DispatchQueue(label: "com.a-instant.clipboard", qos: .userInitiated)
     
     func captureSelectedText() -> String? {
+        Logger.shared.log("Capturing selected text")
         // Preserve the current pasteboard contents
         let preservedPasteboard = PreservedPasteboard()
         
@@ -18,6 +19,7 @@ class PasteboardManager {
         let semaphore = DispatchSemaphore(value: 0)
         
         simulateKeyPressQueue.async {
+            Logger.shared.log("Simulating copy key press")
             self.simulateCopyKeyPress()
             
             // Wait a bit for the copy to happen
@@ -25,6 +27,12 @@ class PasteboardManager {
             
             // Get the text from the pasteboard
             selectedText = self.pasteboard.string(forType: .string)
+            
+            if selectedText != nil {
+                Logger.shared.log("Text captured: \(selectedText!.prefix(30))...")
+            } else {
+                Logger.shared.log("No text was captured")
+            }
             
             semaphore.signal()
         }
@@ -34,6 +42,7 @@ class PasteboardManager {
         
         // Restore original pasteboard contents
         preservedPasteboard.restore()
+        Logger.shared.log("Original pasteboard contents restored")
         
         return selectedText
     }
@@ -72,6 +81,8 @@ class PreservedPasteboard {
             
             return newItem
         } ?? []
+        
+        Logger.shared.log("Preserved \(preservedItems.count) items from pasteboard")
     }
     
     func restore() {
@@ -81,6 +92,9 @@ class PreservedPasteboard {
             
             if !self.preservedItems.isEmpty {
                 self.pasteboard.writeObjects(self.preservedItems)
+                Logger.shared.log("Restored \(self.preservedItems.count) items to pasteboard")
+            } else {
+                Logger.shared.log("No items to restore to pasteboard")
             }
         }
     }

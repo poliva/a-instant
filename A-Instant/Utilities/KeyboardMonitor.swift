@@ -93,7 +93,7 @@ class KeyboardMonitor {
     private var triggerKey: TriggerKey {
         let keyString = UserDefaults.standard.string(forKey: UserDefaultsKeys.triggerKey) ?? TriggerKey.rightShift.rawValue
         let key = TriggerKey.allCases.first { $0.rawValue == keyString } ?? .rightShift
-        print("Getting trigger key: \(key.rawValue) with keyCode: \(key.keyCode)")
+        Logger.shared.log("Getting trigger key: \(key.rawValue) with keyCode: \(key.keyCode)")
         return key
     }
     
@@ -102,11 +102,11 @@ class KeyboardMonitor {
         
         // Check for accessibility permissions
         if !AXIsProcessTrusted() {
-            print("Accessibility permissions not granted. Keyboard monitoring couldn't start.")
+            Logger.shared.log("Accessibility permissions not granted. Keyboard monitoring couldn't start.")
             return
         }
         
-        print("Starting keyboard monitoring with trigger key: \(triggerKey.rawValue)")
+        Logger.shared.log("Starting keyboard monitoring with trigger key: \(triggerKey.rawValue)")
         
         // Monitor for modifier key changes (like Shift, Command, etc.)
         flagsChangedMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
@@ -121,7 +121,7 @@ class KeyboardMonitor {
         }
         
         isMonitoring = true
-        print("Keyboard monitoring started successfully")
+        Logger.shared.log("Keyboard monitoring started successfully")
     }
     
     func stopMonitoring() {
@@ -136,7 +136,7 @@ class KeyboardMonitor {
         }
         
         isMonitoring = false
-        print("Keyboard monitoring stopped")
+        Logger.shared.log("Keyboard monitoring stopped")
     }
     
     private func handleFlagsChanged(_ event: NSEvent) {
@@ -144,14 +144,14 @@ class KeyboardMonitor {
         guard isModifierKey(triggerKey) else { return }
         
         let keyCode = event.keyCode
-        print("Flag change detected - keyCode: \(keyCode), expected: \(triggerKey.keyCode)")
+        Logger.shared.log("Flag change detected - keyCode: \(keyCode), expected: \(triggerKey.keyCode)")
         
         // Check if the pressed key is our trigger key
         guard keyCode == triggerKey.keyCode else { return }
         
         // Determine if key was pressed or released by checking modifier flags
         let isKeyDown = event.modifierFlags.contains(triggerKey.modifierFlags)
-        print("Key \(isKeyDown ? "pressed" : "released")")
+        Logger.shared.log("Key \(isKeyDown ? "pressed" : "released")")
         
         // Only process key down events for double-tap detection
         if isKeyDown {
@@ -159,15 +159,15 @@ class KeyboardMonitor {
             let currentTime = NSDate().timeIntervalSince1970
             let timeDiff = currentTime - lastKeyPressTime
             
-            print("Time difference: \(timeDiff)")
+            Logger.shared.log("Time difference: \(timeDiff)")
             
             // If key was pressed within 0.5 seconds of the last press, it's a double press
             if timeDiff < 0.5 && timeDiff > 0.05 { // Avoid accidental triggers if too quick
-                print("Double tap detected!")
+                Logger.shared.log("Double tap detected!")
                 // Check cooldown period
                 if currentTime - lastTriggerActivation > cooldownPeriod {
                     lastTriggerActivation = currentTime
-                    print("Activating trigger!")
+                    Logger.shared.log("Activating trigger!")
                     DispatchQueue.main.async { [weak self] in
                         self?.onTriggerKeyDetected?()
                     }
@@ -182,62 +182,51 @@ class KeyboardMonitor {
         let keyCode = event.keyCode
         let modifiers = event.modifierFlags
         
-        print("Key down detected - keyCode: \(keyCode), expected: \(triggerKey.keyCode)")
+        Logger.shared.log("Key down detected - keyCode: \(keyCode), expected: \(triggerKey.keyCode)")
         
         if triggerKey.isComboKey {
-            print("Checking combo key - modifiers: \(modifiers), expected: \(triggerKey.modifierFlags)")
+            Logger.shared.log("Checking combo key - modifiers: \(modifiers), expected: \(triggerKey.modifierFlags)")
             // For combo keys (like Cmd+Shift+P), check for exact match
             if keyCode == triggerKey.keyCode && modifiers.contains(triggerKey.modifierFlags) {
-                print("Combo key match!")
+                Logger.shared.log("Combo key match!")
                 // Trigger immediately for combo keys
                 let currentTime = NSDate().timeIntervalSince1970
                 
                 // Check cooldown period
                 if currentTime - lastTriggerActivation > cooldownPeriod {
                     lastTriggerActivation = currentTime
-                    print("Activating trigger!")
+                    Logger.shared.log("Activating trigger!")
                     DispatchQueue.main.async { [weak self] in
                         self?.onTriggerKeyDetected?()
                     }
                 }
             }
-            return
-        }
-        
-        // Only process non-modifier keys for non-combo triggers
-        guard !isModifierKey(triggerKey) else { return }
-        
-        // Check if the pressed key is our trigger key
-        guard keyCode == triggerKey.keyCode else { return }
-        
-        // Check for double press
-        let currentTime = NSDate().timeIntervalSince1970
-        let timeDiff = currentTime - lastKeyPressTime
-        
-        print("Time difference: \(timeDiff)")
-        
-        // If key was pressed within 0.5 seconds of the last press, it's a double press
-        if timeDiff < 0.5 && timeDiff > 0.05 { // Avoid accidental triggers if too quick
-            print("Double tap detected!")
-            // Check cooldown period
-            if currentTime - lastTriggerActivation > cooldownPeriod {
-                lastTriggerActivation = currentTime
-                print("Activating trigger!")
-                DispatchQueue.main.async { [weak self] in
-                    self?.onTriggerKeyDetected?()
+        } else if !isModifierKey(triggerKey) {
+            // For non-modifier keys (like Tab), check for direct keyCode match
+            if keyCode == triggerKey.keyCode {
+                Logger.shared.log("Non-modifier key match!")
+                // Trigger immediately
+                let currentTime = NSDate().timeIntervalSince1970
+                
+                // Check cooldown period
+                if currentTime - lastTriggerActivation > cooldownPeriod {
+                    lastTriggerActivation = currentTime
+                    Logger.shared.log("Activating trigger!")
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onTriggerKeyDetected?()
+                    }
                 }
             }
         }
-        
-        lastKeyPressTime = currentTime
     }
     
     private func isModifierKey(_ key: TriggerKey) -> Bool {
         switch key {
-        case .rightShift, .leftShift, .rightCommand, .leftCommand, 
-             .rightOption, .leftOption, .rightControl, .leftControl, .capsLock:
+        case .rightShift, .leftShift, .rightCommand, .leftCommand,
+             .rightOption, .leftOption, .rightControl, .leftControl,
+             .capsLock:
             return true
-        case .tab, .commandShiftP, .commandShiftSpace, .optionSpace, .commandP, .f1, .f12:
+        default:
             return false
         }
     }

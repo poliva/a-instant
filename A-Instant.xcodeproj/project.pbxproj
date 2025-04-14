@@ -19,6 +19,7 @@
         1A2B3C4D5E6F7890ABCDEF13 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCDEF14 /* SettingsViewModel.swift */; };
         1A2B3C4D5E6F7890ABCDEF15 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCDEF16 /* AIService.swift */; };
         1A2B3C4D5E6F7890ABCDEF17 /* PromptWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCDEF18 /* PromptWindowController.swift */; };
+        1A2B3C4D5E6F7890ABCDEF1Z /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCDEF2Z /* Logger.swift */; };
         ASSETCATALOG_BUILDFILE_ID /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ASSETCATALOG_FILEREF_ID /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -38,6 +39,7 @@
         1A2B3C4D5E6F7890ABCDEF18 /* PromptWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptWindowController.swift; sourceTree = "<group>"; };
         1A2B3C4D5E6F7890ABCDEF19 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
         1A2B3C4D5E6F7890ABCDEF1X /* A-Instant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "A-Instant.entitlements"; sourceTree = "<group>"; };
+        1A2B3C4D5E6F7890ABCDEF2Z /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
         ASSETCATALOG_FILEREF_ID /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -110,6 +112,7 @@
                 1A2B3C4D5E6F7890ABCDEF0C /* KeyboardMonitor.swift */,
                 1A2B3C4D5E6F7890ABCDEF0E /* PasteboardManager.swift */,
                 1A2B3C4D5E6F7890ABCDEF10 /* Constants.swift */,
+                1A2B3C4D5E6F7890ABCDEF2Z /* Logger.swift */,
             );
             path = Utilities;
             sourceTree = "<group>";
@@ -217,6 +220,7 @@
                 1A2B3C4D5E6F7890ABCDEF13 /* SettingsViewModel.swift in Sources */,
                 1A2B3C4D5E6F7890ABCDEF15 /* AIService.swift in Sources */,
                 1A2B3C4D5E6F7890ABCDEF17 /* PromptWindowController.swift in Sources */,
+                1A2B3C4D5E6F7890ABCDEF1Z /* Logger.swift in Sources */,
             );
             runOnlyForDeploymentPostprocessing = 0;
         };
