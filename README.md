@@ -30,12 +30,9 @@ A-Instant eliminates the need to switch between apps, copy/paste, and wait for r
 2. Unzip the file (macOS usually does this automatically)
 3. Move the app to your Applications folder
 4. Opening an unsigned app:
-   - Try to open A-Instant - macOS will show a warning that it's from an unidentified developer
-   - Go to **System Settings → Privacy & Security**
-   - Scroll down to find the section saying "A-Instant was blocked from use because it is not from an identified developer"
-   - Click **"Open Anyway"**
-   - When prompted again, click **"Open"**
-   - This only needs to be done once per app version
+   - Open Terminal
+   - Run: `xattr -r -d com.apple.quarantine /Applications/A-Instant.app`
+   - This tells Gatekeeper to skip checking the application on launch and only needs to be done once after installation
 5. When prompted, grant accessibility permissions in System Settings > Privacy & Security > Accessibility
 
 ## Usage
