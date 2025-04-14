@@ -15,7 +15,7 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.4</string>
+	<string>1.0.5</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
@@ -26,6 +26,10 @@
 	<string>A-Instant needs accessibility access to monitor keyboard input and manipulate text in other applications.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>A-Instant needs to control your computer to copy selected text and paste responses.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2025 Pau Oliva Fora. All rights reserved.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 	<key>NSServices</key>
 	<array>
 		<dict>
@@ -45,9 +49,5 @@
 			<integer>1</integer>
 		</dict>
 	</array>
-	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2025 Pau Oliva Fora. All rights reserved.</string>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
 </dict>
 </plist>
