@@ -483,7 +483,7 @@ struct SettingsView: View {
         case .anthropic:
             return URL(string: "https://console.anthropic.com/settings/keys")
         case .google:
-            return URL(string: "https://aistudio.google.com/app/apikeys")
+            return URL(string: "https://aistudio.google.com/app/apikey")
         case .groq:
             return URL(string: "https://console.groq.com/keys")
         case .deepSeek:
