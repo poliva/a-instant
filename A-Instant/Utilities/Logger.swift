@@ -29,6 +29,20 @@ class Logger {
     }
     
     func log(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        // Check if debug logging is enabled
+        let shouldLog = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableDebugLogging)
+        
+        // Always log critical system messages regardless of setting
+        let isCriticalMessage = message.contains("Application started") || 
+                               message.contains("Application initialization complete") ||
+                               message.contains("Error") || 
+                               message.contains("Failed")
+        
+        // Skip logging if debug logging is disabled and this isn't a critical message
+        if !shouldLog && !isCriticalMessage {
+            return
+        }
+        
         let filename = URL(fileURLWithPath: file).lastPathComponent
         let timestamp = dateFormatter.string(from: Date())
         let logMessage = "[\(timestamp)] [\(filename):\(line) \(function)] \(message)\n"

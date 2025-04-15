@@ -13,6 +13,8 @@ class SettingsViewModel: ObservableObject {
     @Published var mistralKey: String = ""
     @Published var ollamaEndpoint: String = "http://localhost:11434"
     @Published var autoLaunchOnStartup: Bool = true
+    @Published var enableAutomaticUpdates: Bool = true
+    @Published var enableDebugLogging: Bool = false
     
     @Published var openAIModel: String = ""
     @Published var anthropicModel: String = ""
@@ -45,6 +47,14 @@ class SettingsViewModel: ObservableObject {
     
     init() {
         loadSettings()
+        
+        // Set up observers for settings changes
+        $enableAutomaticUpdates
+            .dropFirst() // Skip initial value
+            .sink { [weak self] newValue in
+                self?.updateAutomaticUpdatesStatus(newValue)
+            }
+            .store(in: &cancellables)
     }
     
     func loadSettings() {
@@ -96,6 +106,12 @@ class SettingsViewModel: ObservableObject {
         // Load auto-launch setting, defaulting to true if not set
         autoLaunchOnStartup = UserDefaults.standard.object(forKey: UserDefaultsKeys.autoLaunchOnStartup) as? Bool ?? true
         
+        // Load automatic updates setting, defaulting to true if not set
+        enableAutomaticUpdates = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableAutomaticUpdates) as? Bool ?? true
+        
+        // Load debug logging setting, defaulting to false if not set
+        enableDebugLogging = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableDebugLogging) as? Bool ?? false
+        
         // Apply auto-launch setting
         updateAutoLaunchStatus()
     }
@@ -135,6 +151,12 @@ class SettingsViewModel: ObservableObject {
         
         // Save auto-launch setting
         UserDefaults.standard.set(autoLaunchOnStartup, forKey: UserDefaultsKeys.autoLaunchOnStartup)
+        
+        // Save automatic updates setting
+        UserDefaults.standard.set(enableAutomaticUpdates, forKey: UserDefaultsKeys.enableAutomaticUpdates)
+        
+        // Save debug logging setting
+        UserDefaults.standard.set(enableDebugLogging, forKey: UserDefaultsKeys.enableDebugLogging)
         
         // Apply auto-launch setting
         updateAutoLaunchStatus()
@@ -348,5 +370,14 @@ class SettingsViewModel: ObservableObject {
             // This feature requires macOS 13+
             Logger.shared.log("Auto-launch functionality requires macOS 13+")
         }
+    }
+    
+    // Method to update automatic updates behavior when setting changes
+    private func updateAutomaticUpdatesStatus(_ isEnabled: Bool) {
+        NotificationCenter.default.post(
+            name: Notification.Name("UpdateAutomaticUpdatesSettingChanged"),
+            object: nil,
+            userInfo: ["isEnabled": isEnabled]
+        )
     }
 } 

@@ -73,6 +73,27 @@ struct SettingsView: View {
             Divider()
             
             VStack(alignment: .leading, spacing: 10) {
+                Text("Application Options")
+                    .font(.headline)
+                
+                Toggle("Check for updates automatically", isOn: $viewModel.enableAutomaticUpdates)
+                    .padding(.top, 4)
+                
+                Text("A-Instant will periodically check for new versions")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Toggle("Enable debug logging", isOn: $viewModel.enableDebugLogging)
+                    .padding(.top, 8)
+                
+                Text("Logs detailed information for troubleshooting")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Divider()
+            
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Startup Options")
                     .font(.headline)
                 

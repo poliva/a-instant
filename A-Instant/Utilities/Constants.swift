@@ -20,6 +20,8 @@ struct UserDefaultsKeys {
     static let autoLaunchOnStartup = "autoLaunchOnStartup"
     static let mistralKey = "mistralKey"
     static let mistralModel = "mistralModel"
+    static let enableAutomaticUpdates = "enableAutomaticUpdates"
+    static let enableDebugLogging = "enableDebugLogging"
 }
 
 enum AIProvider: String, CaseIterable, Identifiable {

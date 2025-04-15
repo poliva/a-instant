@@ -68,6 +68,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             object: nil
         )
         
+        // Register for automatic updates setting change
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAutomaticUpdatesSettingChanged(_:)),
+            name: Notification.Name("UpdateAutomaticUpdatesSettingChanged"),
+            object: nil
+        )
+        
         Logger.shared.log("Application initialization complete")
     }
     
@@ -355,6 +363,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             UserDefaultsKeys.aiProvider: AIProvider.openAI.rawValue,
             UserDefaultsKeys.ollamaEndpoint: "http://localhost:11434",
             UserDefaultsKeys.autoLaunchOnStartup: true,
+            UserDefaultsKeys.enableAutomaticUpdates: true,
+            UserDefaultsKeys.enableDebugLogging: false,
             "isFirstLaunch": true
         ]
         
@@ -430,8 +440,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     
     private func setupPeriodicUpdateChecks() {
-        Logger.shared.log("Setting up periodic update checks")
-        updateChecker.startPeriodicChecks()
+        // Check if automatic updates are enabled
+        let automaticUpdatesEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableAutomaticUpdates)
+        
+        if automaticUpdatesEnabled {
+            Logger.shared.log("Setting up periodic update checks")
+            updateChecker.startPeriodicChecks()
+        } else {
+            Logger.shared.log("Automatic update checks are disabled")
+            updateChecker.stopPeriodicChecks()
+        }
     }
     
     @objc private func handleUpdateAvailableNotification(_ notification: Notification) {
@@ -442,6 +460,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         Logger.shared.log("Update notification received with URL: \(updateURL)")
         showUpdateAvailableAlert(updateURL: updateURL)
+    }
+    
+    @objc private func handleAutomaticUpdatesSettingChanged(_ notification: Notification) {
+        // Handle automatic updates setting change
+        Logger.shared.log("Automatic updates setting changed")
+        setupPeriodicUpdateChecks()
     }
     
     // MARK: - NSWindowDelegate
