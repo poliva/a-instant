@@ -315,9 +315,6 @@ struct SettingsView: View {
                             
                             Button(action: {
                                 editingPrompt = prompt
-                                newPromptName = prompt.name
-                                newPromptText = prompt.promptText
-                                showingPromptEditor = true
                             }) {
                                 Image(systemName: "pencil")
                                     .foregroundColor(.accentColor)
@@ -368,9 +365,6 @@ struct SettingsView: View {
                 Spacer()
                 
                 Button(action: {
-                    editingPrompt = nil
-                    newPromptName = ""
-                    newPromptText = ""
                     showingPromptEditor = true
                 }) {
                     HStack {
@@ -383,15 +377,29 @@ struct SettingsView: View {
             }
         }
         .padding()
-        .sheet(isPresented: $showingPromptEditor) {
-            promptEditorView
+        .sheet(item: $editingPrompt) { prompt in
+            promptEditorView(for: prompt)
+        }
+        .sheet(isPresented: $showingPromptEditor, onDismiss: {
+            editingPrompt = nil
+        }) {
+            promptEditorView(for: nil)
         }
     }
     
-    private var promptEditorView: some View {
+    private func promptEditorView(for prompt: SavedPrompt?) -> some View {
         VStack(spacing: 20) {
-            Text(editingPrompt == nil ? "Add New Prompt" : "Edit Prompt")
+            Text(prompt == nil ? "Add New Prompt" : "Edit Prompt")
                 .font(.headline)
+                .onAppear {
+                    if let prompt = prompt {
+                        newPromptName = prompt.name
+                        newPromptText = prompt.promptText
+                    } else {
+                        newPromptName = ""
+                        newPromptText = ""
+                    }
+                }
             
             VStack(alignment: .leading) {
                 Text("Name")
@@ -419,16 +427,20 @@ struct SettingsView: View {
             
             HStack {
                 Button("Cancel") {
-                    showingPromptEditor = false
+                    if prompt != nil {
+                        editingPrompt = nil
+                    } else {
+                        showingPromptEditor = false
+                    }
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 
                 Spacer()
                 
-                Button(editingPrompt == nil ? "Create" : "Update") {
-                    if let editing = editingPrompt {
+                Button(prompt == nil ? "Create" : "Update") {
+                    if let editPrompt = prompt {
                         // Update existing prompt
-                        if let index = viewModel.savedPrompts.firstIndex(where: { $0.id == editing.id }) {
+                        if let index = viewModel.savedPrompts.firstIndex(where: { $0.id == editPrompt.id }) {
                             viewModel.savedPrompts[index].name = newPromptName
                             viewModel.savedPrompts[index].promptText = newPromptText
                         }
@@ -443,7 +455,12 @@ struct SettingsView: View {
                     }
                     
                     viewModel.saveSettings()
-                    showingPromptEditor = false
+                    
+                    if prompt != nil {
+                        editingPrompt = nil
+                    } else {
+                        showingPromptEditor = false
+                    }
                 }
                 .disabled(newPromptName.isEmpty || newPromptText.isEmpty)
                 .buttonStyle(BorderlessButtonStyle())
