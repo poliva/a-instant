@@ -294,7 +294,7 @@ class SettingsViewModel: ObservableObject {
     // Function to update login item status
     private func updateAutoLaunchStatus() {
         if #available(macOS 13.0, *) {
-            let bundleIdentifier = Bundle.main.bundleIdentifier ?? ""
+            let _ = Bundle.main.bundleIdentifier ?? ""
             
             do {
                 let service = SMAppService.mainApp

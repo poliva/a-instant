@@ -102,7 +102,7 @@ Instruction: \(promptText)
         // Reactivate the original application and simulate paste
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             if let originalApp = self?.originalApplication {
-                originalApp.activate(options: .activateIgnoringOtherApps)
+                originalApp.activate()
                 
                 // Wait for the app to be activated before simulating paste
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

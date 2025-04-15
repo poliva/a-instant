@@ -112,7 +112,7 @@ struct SettingsView: View {
                 }
                 .pickerStyle(MenuPickerStyle())
                 .labelsHidden()
-                .onChange(of: viewModel.selectedProvider) { _ in
+                .onChange(of: viewModel.selectedProvider) { oldValue, newValue in
                     viewModel.refreshModelList()
                 }
                 
