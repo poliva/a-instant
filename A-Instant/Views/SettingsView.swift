@@ -289,6 +289,10 @@ struct SettingsView: View {
             
             Divider()
             
+            TextField("Search prompts...", text: $viewModel.promptSearchText)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding(.bottom, 10)
+            
             if viewModel.savedPrompts.isEmpty {
                 VStack {
                     Text("No saved prompts yet")
@@ -299,7 +303,7 @@ struct SettingsView: View {
                 }
             } else {
                 List {
-                    ForEach(viewModel.savedPrompts) { prompt in
+                    ForEach(viewModel.filteredSavedPrompts) { prompt in
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(prompt.name)

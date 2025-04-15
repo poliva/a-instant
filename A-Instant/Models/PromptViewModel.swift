@@ -9,6 +9,19 @@ class PromptViewModel: ObservableObject {
     @Published var isProcessing: Bool = false
     @Published var error: String? = nil
     @Published var savedPrompts: [SavedPrompt] = []
+    @Published var promptSearchText: String = ""
+    
+    // Filtered prompts based on search text
+    var filteredSavedPrompts: [SavedPrompt] {
+        if promptSearchText.isEmpty {
+            return savedPrompts
+        } else {
+            return savedPrompts.filter { prompt in
+                prompt.name.localizedCaseInsensitiveContains(promptSearchText) ||
+                prompt.promptText.localizedCaseInsensitiveContains(promptSearchText)
+            }
+        }
+    }
     
     private let aiService = AIService()
     private var cancellables = Set<AnyCancellable>()

@@ -26,6 +26,19 @@ class SettingsViewModel: ObservableObject {
     @Published var isLoadingModels: Bool = false
     @Published var modelLoadError: String? = nil
     @Published var savedPrompts: [SavedPrompt] = []
+    @Published var promptSearchText: String = ""
+    
+    // Filtered prompts based on search text
+    var filteredSavedPrompts: [SavedPrompt] {
+        if promptSearchText.isEmpty {
+            return savedPrompts
+        } else {
+            return savedPrompts.filter { prompt in
+                prompt.name.localizedCaseInsensitiveContains(promptSearchText) ||
+                prompt.promptText.localizedCaseInsensitiveContains(promptSearchText)
+            }
+        }
+    }
     
     private var cancellables = Set<AnyCancellable>()
     private let aiService = AIService()

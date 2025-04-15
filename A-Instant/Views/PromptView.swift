@@ -134,13 +134,19 @@ struct PromptView: View {
                 .font(.headline)
                 .padding()
             
+            // Add search field
+            TextField("Search prompts...", text: $viewModel.promptSearchText)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding(.horizontal)
+                .padding(.bottom, 10)
+            
             if viewModel.savedPrompts.isEmpty {
                 Text("No saved prompts yet")
                     .foregroundColor(.secondary)
                     .padding()
             } else {
                 List {
-                    ForEach(viewModel.savedPrompts) { prompt in
+                    ForEach(viewModel.filteredSavedPrompts) { prompt in
                         Button(action: {
                             viewModel.usePrompt(prompt)
                             showingSavedPrompts = false
