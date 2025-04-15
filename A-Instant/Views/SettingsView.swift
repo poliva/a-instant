@@ -38,7 +38,7 @@ struct SettingsView: View {
                 }
                 .tag(3)
         }
-        .frame(width: 600, height: 550)
+        .frame(width: 600, height: 580)
         .padding()
         .onDisappear {
             viewModel.saveSettings()
