@@ -40,14 +40,17 @@ class PromptViewModel: ObservableObject {
 You are a text transformation AI.
 Your task is to take a block of selected text and apply the given instruction to it.
 Return only the modified text, with no explanations, no introductions, and no quotation marks.
-Be subtle and natural when applying the instruction, making sure the output still reads fluently.
 Here is the input:
+
+Instruction:
+```
+\(promptText)
+```
 
 Selected text:
 ```
 \(selectedText)
 ```
-Instruction: \(promptText)
 """
         
         aiService.sendPrompt(
