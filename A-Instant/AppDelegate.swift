@@ -251,6 +251,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
         window.delegate = self
+        window.isReleasedWhenClosed = false
         
         NSApp.activate(ignoringOtherApps: true)
         
