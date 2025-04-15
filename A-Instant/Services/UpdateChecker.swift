@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 /// A service that checks for application updates from GitHub releases
 class UpdateChecker {
