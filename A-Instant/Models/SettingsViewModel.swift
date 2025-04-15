@@ -85,9 +85,6 @@ class SettingsViewModel: ObservableObject {
         
         // Apply auto-launch setting
         updateAutoLaunchStatus()
-        
-        // Initial list of available models for the selected provider
-        refreshModelList()
     }
     
     func saveSettings() {
@@ -190,7 +187,12 @@ class SettingsViewModel: ObservableObject {
                     self?.isLoadingModels = false
                     
                     if case .failure(let error) = completion {
-                        self?.modelLoadError = error.localizedDescription
+                        // Extract a user-friendly error message
+                        if let apiError = error as? AIServiceError {
+                            self?.modelLoadError = apiError.userFriendlyMessage
+                        } else {
+                            self?.modelLoadError = error.localizedDescription
+                        }
                         self?.availableModels = []
                     }
                 },
@@ -223,6 +225,14 @@ class SettingsViewModel: ObservableObject {
         case .mistral: return mistralModel
         case .ollama: return ollamaModel
         }
+    }
+    
+    // Make sure availableModels contains at least the current model
+    var displayModels: [String] {
+        if availableModels.isEmpty && !currentModel.isEmpty {
+            return [currentModel]
+        }
+        return availableModels
     }
     
     func setCurrentModel(_ model: String) {

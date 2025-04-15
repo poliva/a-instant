@@ -35,13 +35,15 @@ class PromptViewModel: ObservableObject {
         
         let apiKey = UserDefaults.standard.string(forKey: provider.apiKeyUserDefaultsKey) ?? ""
         
-        // Build complete prompt with selected text
-        let completePrompt = """
+        // System prompt with the text transformation instructions
+        let systemPrompt = """
 You are a text transformation AI.
 Your task is to take a block of selected text and apply the given instruction to it.
 Return only the modified text, with no explanations, no introductions, and no quotation marks.
-Here is the input:
-
+"""
+        
+        // User prompt with just the instruction and selected text
+        let userPrompt = """
 Instruction:
 ```
 \(promptText)
@@ -49,12 +51,13 @@ Instruction:
 
 Selected text:
 ```
-\(selectedText)
+ \(selectedText)
 ```
 """
         
         aiService.sendPrompt(
-            text: completePrompt,
+            text: userPrompt,
+            systemPrompt: systemPrompt,
             provider: provider,
             model: model,
             apiKey: apiKey
@@ -65,7 +68,12 @@ Selected text:
                 self?.isProcessing = false
                 
                 if case .failure(let error) = completion {
-                    self?.error = error.localizedDescription
+                    // Extract a user-friendly error message
+                    if let apiError = error as? AIServiceError {
+                        self?.error = apiError.userFriendlyMessage
+                    } else {
+                        self?.error = error.localizedDescription
+                    }
                 }
             },
             receiveValue: { [weak self] response in

@@ -149,10 +149,10 @@ struct SettingsView: View {
                         get: { viewModel.currentModel },
                         set: { viewModel.setCurrentModel($0) }
                     )) {
-                        if viewModel.availableModels.isEmpty {
+                        if viewModel.displayModels.isEmpty {
                             Text("No available models").tag("")
                         } else {
-                            ForEach(viewModel.availableModels, id: \.self) { model in
+                            ForEach(viewModel.displayModels, id: \.self) { model in
                                 Text(model).tag(model)
                             }
                         }
@@ -208,7 +208,12 @@ struct SettingsView: View {
                         .foregroundColor(.red)
                         .font(.caption)
                         .padding(.top, 5)
-                } else if !viewModel.availableModels.isEmpty {
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else if !viewModel.displayModels.isEmpty {
                     Text("Connection successful!")
                         .foregroundColor(.green)
                         .font(.caption)
@@ -256,7 +261,12 @@ struct SettingsView: View {
                         .foregroundColor(.red)
                         .font(.caption)
                         .padding(.top, 5)
-                } else if !viewModel.availableModels.isEmpty {
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else if !viewModel.displayModels.isEmpty {
                     Text("Connection successful!")
                         .foregroundColor(.green)
                         .font(.caption)

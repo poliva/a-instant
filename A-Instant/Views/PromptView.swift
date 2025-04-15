@@ -50,6 +50,21 @@ struct PromptView: View {
                     .font(.headline)
                     .foregroundColor(.white)
                 
+                // Display error if present
+                if let errorMessage = viewModel.error {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.bottom, 5)
+                        .multilineTextAlignment(.leading)
+                }
+                
                 ScrollViewReader { proxy in
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $viewModel.promptText)

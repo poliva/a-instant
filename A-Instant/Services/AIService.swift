@@ -8,9 +8,89 @@ enum AIServiceError: Error {
     case decodingError(Error)
     case apiError(String)
     case unknownError
+    case invalidRequestData(Error)
+    case invalidResponse
+    case requestFailed(Int, String)
+    case unknown(Error)
 }
 
 class AIService {
+    // MARK: - Private helpers for logging
+    
+    private func logRequest(_ request: URLRequest, provider: String, endpoint: String) {
+        var logMessage = "API Request to \(provider) - \(endpoint)\n"
+        
+        // Mask API key in URL if present
+        if let urlString = request.url?.absoluteString {
+            // Create a censored version of the URL that hides API keys
+            var censoredURL = urlString
+            // Handle key= parameter in URL (used by Google API)
+            censoredURL = censoredURL.replacingOccurrences(of: #"key=[^&]*"#, with: "key=[REDACTED]", options: .regularExpression)
+            logMessage += "URL: \(censoredURL)\n"
+        } else {
+            logMessage += "URL: unknown\n"
+        }
+        
+        if let method = request.httpMethod {
+            logMessage += "Method: \(method)\n"
+        }
+        
+        logMessage += "Headers: \n"
+        if let headers = request.allHTTPHeaderFields {
+            for (key, value) in headers {
+                // Mask API keys in the log
+                if key.lowercased().contains("api") || key.lowercased().contains("key") || key.lowercased().contains("authorization") {
+                    logMessage += "  \(key): [REDACTED]\n"
+                } else {
+                    logMessage += "  \(key): \(value)\n"
+                }
+            }
+        }
+        
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            // Create a censored version of the body that hides API keys and sensitive data
+            var censoredBody = bodyString
+            // Basic JSON censoring - should be improved for production code
+            censoredBody = censoredBody.replacingOccurrences(of: #"("api_key"|"key"|"Authorization"|"auth"|"token"|"password"):"[^"]*"#, with: "$1:\"[REDACTED]\"", options: .regularExpression)
+            
+            logMessage += "Body: \(censoredBody)"
+        }
+        
+        Logger.shared.log(logMessage)
+    }
+    
+    private func logResponse(data: Data, response: URLResponse, provider: String, endpoint: String) {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            Logger.shared.log("Invalid response type from \(provider) - \(endpoint)")
+            return
+        }
+        
+        var logMessage = "API Response from \(provider) - \(endpoint)\n"
+        logMessage += "Status Code: \(httpResponse.statusCode)\n"
+        
+        // Log headers
+        logMessage += "Headers: \n"
+        for (key, value) in httpResponse.allHeaderFields {
+            logMessage += "  \(key): \(value)\n"
+        }
+        
+        // Log response body (truncated if large)
+        if let responseString = String(data: data, encoding: .utf8) {
+            let truncatedResponse = responseString.count > 1000 ? responseString.prefix(1000) + "... [truncated]" : responseString
+            logMessage += "Body: \(truncatedResponse)"
+        } else {
+            logMessage += "Body: [Binary data of \(data.count) bytes]"
+        }
+        
+        Logger.shared.log(logMessage)
+    }
+    
+    private func logError(_ error: Error, provider: String, endpoint: String) {
+        Logger.shared.log("API Error from \(provider) - \(endpoint): \(error.localizedDescription)")
+    }
+    
+    // MARK: - Public Methods
+    
     func sendPrompt(
         text: String,
         provider: AIProvider,
@@ -33,6 +113,32 @@ class AIService {
         case .ollama:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
             return sendOllamaPrompt(text: text, model: model, endpoint: endpoint)
+        }
+    }
+    
+    func sendPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        provider: AIProvider,
+        model: String,
+        apiKey: String
+    ) -> AnyPublisher<String, AIServiceError> {
+        switch provider {
+        case .openAI:
+            return sendOpenAIPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey)
+        case .anthropic:
+            return sendAnthropicPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey)
+        case .google:
+            return sendGooglePrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey)
+        case .groq:
+            return sendGroqPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey)
+        case .deepSeek:
+            return sendDeepSeekPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey)
+        case .mistral:
+            return sendMistralPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey)
+        case .ollama:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
+            return sendOllamaPrompt(text: text, systemPrompt: systemPrompt, model: model, endpoint: endpoint)
         }
     }
     
@@ -62,7 +168,12 @@ class AIService {
     
     // MARK: - OpenAI
     
-    private func sendOpenAIPrompt(text: String, model: String, apiKey: String) -> AnyPublisher<String, AIServiceError> {
+    private func sendOpenAIPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        apiKey: String
+    ) -> AnyPublisher<String, AIServiceError> {
         guard !apiKey.isEmpty else {
             return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
         }
@@ -76,46 +187,64 @@ class AIService {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        var messages: [[String: Any]] = []
+        
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        
+        messages.append(["role": "user", "content": text])
+        
         let requestBody: [String: Any] = [
             "model": model,
-            "messages": [
-                ["role": "user", "content": text]
-            ],
+            "messages": messages,
             "temperature": 0.7
         ]
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "OpenAI", endpoint: "chat/completions")
         } catch {
-            return Fail(error: AIServiceError.networkError(error)).eraseToAnyPublisher()
+            logError(error, provider: "OpenAI", endpoint: "chat/completions")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
         }
         
         return URLSession.shared.dataTaskPublisher(for: request)
-            .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "OpenAI", endpoint: "chat/completions")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    throw AIServiceError.unknownError
+                    throw AIServiceError.invalidResponse
                 }
                 
                 if httpResponse.statusCode != 200 {
-                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
-                        throw AIServiceError.apiError(errorMessage)
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
                     }
-                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
                 }
                 
                 return data
             }
             .decode(type: OpenAIResponse.self, decoder: JSONDecoder())
+            .map { response in
+                guard let choice = response.choices.first else {
+                    return "No response generated"
+                }
+                return choice.message.content
+            }
             .mapError { error in
+                self.logError(error, provider: "OpenAI", endpoint: "chat/completions")
                 if let aiError = error as? AIServiceError {
                     return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
                 }
-                return AIServiceError.decodingError(error)
-            }
-            .map { response in
-                response.choices.first?.message.content ?? "No response from the model."
             }
             .eraseToAnyPublisher()
     }
@@ -134,9 +263,15 @@ class AIService {
         var request = URLRequest(url: url)
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        // Log the request
+        logRequest(request, provider: "OpenAI", endpoint: "models")
+        
         return URLSession.shared.dataTaskPublisher(for: request)
             .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "OpenAI", endpoint: "models")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw AIServiceError.unknownError
                 }
@@ -153,6 +288,7 @@ class AIService {
             }
             .decode(type: OpenAIModelsResponse.self, decoder: JSONDecoder())
             .mapError { error in
+                self.logError(error, provider: "OpenAI", endpoint: "models")
                 if let aiError = error as? AIServiceError {
                     return aiError
                 }
@@ -172,7 +308,12 @@ class AIService {
     
     // MARK: - Anthropic
     
-    private func sendAnthropicPrompt(text: String, model: String, apiKey: String) -> AnyPublisher<String, AIServiceError> {
+    private func sendAnthropicPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        apiKey: String
+    ) -> AnyPublisher<String, AIServiceError> {
         guard !apiKey.isEmpty else {
             return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
         }
@@ -184,53 +325,66 @@ class AIService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("anthropic-version: 2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "x-api-key")
-        request.addValue("anthropic-swift/1.0", forHTTPHeaderField: "x-client-name")
-        request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "model": model,
+            "max_tokens": 1024,
             "messages": [
                 ["role": "user", "content": text]
             ]
         ]
         
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            requestBody["system"] = systemPrompt
+        }
+        
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "Anthropic", endpoint: "messages")
         } catch {
-            return Fail(error: AIServiceError.networkError(error)).eraseToAnyPublisher()
+            logError(error, provider: "Anthropic", endpoint: "messages")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
         }
         
         return URLSession.shared.dataTaskPublisher(for: request)
-            .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Anthropic", endpoint: "messages")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    throw AIServiceError.unknownError
+                    throw AIServiceError.invalidResponse
                 }
                 
                 if httpResponse.statusCode != 200 {
-                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = errorJson["error"] as? [String: Any],
-                       let message = errorMessage["message"] as? String {
-                        throw AIServiceError.apiError(message)
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
                     }
-                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
                 }
                 
                 return data
             }
             .decode(type: AnthropicResponse.self, decoder: JSONDecoder())
+            .map { response in
+                let textBlocks = response.content.filter { $0.type == "text" }
+                guard let firstTextBlock = textBlocks.first else {
+                    return "No response generated"
+                }
+                return firstTextBlock.text
+            }
             .mapError { error in
+                self.logError(error, provider: "Anthropic", endpoint: "messages")
                 if let aiError = error as? AIServiceError {
                     return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
                 }
-                return AIServiceError.decodingError(error)
-            }
-            .map { response in
-                if let content = response.content.first?.text {
-                    return content
-                }
-                return "No response from the model."
             }
             .eraseToAnyPublisher()
     }
@@ -249,25 +403,46 @@ class AIService {
         request.addValue("anthropic-swift/1.0", forHTTPHeaderField: "x-client-name")
         request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         
+        // Log the request
+        logRequest(request, provider: "Anthropic", endpoint: "models")
+        
         return URLSession.shared.dataTaskPublisher(for: request)
             .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Anthropic", endpoint: "models")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw AIServiceError.unknownError
                 }
                 
                 if httpResponse.statusCode != 200 {
-                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
-                        throw AIServiceError.apiError(errorMessage)
+                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        // Try to extract error message from Anthropic format: {"type":"error","error":{"type":"authentication_error","message":"..."}}
+                        if let errorObj = errorJson["error"] as? [String: Any], 
+                           let message = errorObj["message"] as? String {
+                            throw AIServiceError.apiError(message)
+                        } 
+                        // Try another common format: {"error": {"message": "..."}}
+                        else if let errorObj = errorJson["error"] as? [String: Any],
+                                let message = errorObj["message"] as? String {
+                            throw AIServiceError.apiError(message)
+                        }
+                        // Simple format: {"message": "..."}
+                        else if let message = errorJson["message"] as? String {
+                            throw AIServiceError.apiError(message)
+                        }
                     }
-                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
+                    // Fallback
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    throw AIServiceError.apiError("Error \(httpResponse.statusCode): \(responseString)")
                 }
                 
                 return data
             }
             .decode(type: AnthropicModelsResponse.self, decoder: JSONDecoder())
             .mapError { error in
+                self.logError(error, provider: "Anthropic", endpoint: "models")
                 if let aiError = error as? AIServiceError {
                     return aiError
                 }
@@ -281,12 +456,15 @@ class AIService {
     
     // MARK: - Google
     
-    private func sendGooglePrompt(text: String, model: String, apiKey: String) -> AnyPublisher<String, AIServiceError> {
-        guard !apiKey.isEmpty else {
-            return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
-        }
-        
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1/models/\(model):generateContent?key=\(apiKey)") else {
+    private func sendGooglePrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        apiKey: String
+    ) -> AnyPublisher<String, AIServiceError> {
+        let baseURL = "https://generativelanguage.googleapis.com/v1/models/"
+        guard let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(baseURL)\(encodedModel):generateContent?key=\(apiKey)") else {
             return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
         }
         
@@ -294,51 +472,69 @@ class AIService {
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        // Google AI doesn't support system role, so we need to handle it differently
+        let finalUserText: String
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            // Incorporate system prompt into the user message
+            finalUserText = "\(systemPrompt)\n\n\(text)"
+        } else {
+            finalUserText = text
+        }
+        
         let requestBody: [String: Any] = [
             "contents": [
-                ["parts": [["text": text]]]
-            ],
-            "generationConfig": [
-                "temperature": 0.7
+                [
+                    "role": "user",
+                    "parts": [["text": finalUserText]]
+                ]
             ]
         ]
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "Google AI", endpoint: "generateContent")
         } catch {
-            return Fail(error: AIServiceError.networkError(error)).eraseToAnyPublisher()
+            logError(error, provider: "Google AI", endpoint: "generateContent")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
         }
         
         return URLSession.shared.dataTaskPublisher(for: request)
-            .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Google AI", endpoint: "generateContent")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    throw AIServiceError.unknownError
+                    throw AIServiceError.invalidResponse
                 }
                 
                 if httpResponse.statusCode != 200 {
-                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let error = errorJson["error"] as? [String: Any],
-                       let message = error["message"] as? String {
-                        throw AIServiceError.apiError(message)
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
                     }
-                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
                 }
                 
                 return data
             }
             .decode(type: GoogleAIResponse.self, decoder: JSONDecoder())
+            .map { response in
+                guard let candidate = response.candidates.first,
+                      let part = candidate.content.parts.first else {
+                    return "No response generated"
+                }
+                return part.text
+            }
             .mapError { error in
+                self.logError(error, provider: "Google AI", endpoint: "generateContent")
                 if let aiError = error as? AIServiceError {
                     return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
                 }
-                return AIServiceError.decodingError(error)
-            }
-            .map { response in
-                if let content = response.candidates.first?.content.parts.first?.text {
-                    return content
-                }
-                return "No response from the model."
             }
             .eraseToAnyPublisher()
     }
@@ -352,9 +548,17 @@ class AIService {
             return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
         }
         
-        return URLSession.shared.dataTaskPublisher(for: url)
+        let request = URLRequest(url: url)
+        
+        // Log the request
+        logRequest(request, provider: "Google AI", endpoint: "models")
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
             .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Google AI", endpoint: "models")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw AIServiceError.unknownError
                 }
@@ -372,6 +576,7 @@ class AIService {
             }
             .decode(type: GoogleModelsResponse.self, decoder: JSONDecoder())
             .mapError { error in
+                self.logError(error, provider: "Google AI", endpoint: "models")
                 if let aiError = error as? AIServiceError {
                     return aiError
                 }
@@ -388,12 +593,17 @@ class AIService {
     
     // MARK: - Groq
     
-    private func sendGroqPrompt(text: String, model: String, apiKey: String) -> AnyPublisher<String, AIServiceError> {
+    private func sendGroqPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        apiKey: String
+    ) -> AnyPublisher<String, AIServiceError> {
         guard !apiKey.isEmpty else {
             return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
         }
         
-        guard let url = URL(string: "https://api.groq.com/v1/chat/completions") else {
+        guard let url = URL(string: "https://api.groq.com/openai/v1/chat/completions") else {
             return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
         }
         
@@ -402,46 +612,63 @@ class AIService {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        var messages: [[String: String]] = []
+        
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        
+        messages.append(["role": "user", "content": text])
+        
         let requestBody: [String: Any] = [
             "model": model,
-            "messages": [
-                ["role": "user", "content": text]
-            ],
-            "temperature": 0.7
+            "messages": messages
         ]
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "Groq", endpoint: "chat/completions")
         } catch {
-            return Fail(error: AIServiceError.networkError(error)).eraseToAnyPublisher()
+            logError(error, provider: "Groq", endpoint: "chat/completions")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
         }
         
         return URLSession.shared.dataTaskPublisher(for: request)
-            .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Groq", endpoint: "chat/completions")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    throw AIServiceError.unknownError
+                    throw AIServiceError.invalidResponse
                 }
                 
                 if httpResponse.statusCode != 200 {
-                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
-                        throw AIServiceError.apiError(errorMessage)
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
                     }
-                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
                 }
                 
                 return data
             }
             .decode(type: OpenAIResponse.self, decoder: JSONDecoder())
+            .map { response in
+                guard let choice = response.choices.first else {
+                    return "No response generated"
+                }
+                return choice.message.content
+            }
             .mapError { error in
+                self.logError(error, provider: "Groq", endpoint: "chat/completions")
                 if let aiError = error as? AIServiceError {
                     return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
                 }
-                return AIServiceError.decodingError(error)
-            }
-            .map { response in
-                response.choices.first?.message.content ?? "No response from the model."
             }
             .eraseToAnyPublisher()
     }
@@ -460,9 +687,15 @@ class AIService {
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        // Log the request
+        logRequest(request, provider: "Groq", endpoint: "models")
+        
         return URLSession.shared.dataTaskPublisher(for: request)
             .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Groq", endpoint: "models")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw AIServiceError.unknownError
                 }
@@ -485,6 +718,7 @@ class AIService {
             }
             .decode(type: GroqModelsResponse.self, decoder: JSONDecoder())
             .mapError { error in
+                self.logError(error, provider: "Groq", endpoint: "models")
                 if let aiError = error as? AIServiceError {
                     return aiError
                 }
@@ -498,7 +732,12 @@ class AIService {
     
     // MARK: - DeepSeek
     
-    private func sendDeepSeekPrompt(text: String, model: String, apiKey: String) -> AnyPublisher<String, AIServiceError> {
+    private func sendDeepSeekPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        apiKey: String
+    ) -> AnyPublisher<String, AIServiceError> {
         guard !apiKey.isEmpty else {
             return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
         }
@@ -512,46 +751,63 @@ class AIService {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        var messages: [[String: String]] = []
+        
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        
+        messages.append(["role": "user", "content": text])
+        
         let requestBody: [String: Any] = [
             "model": model,
-            "messages": [
-                ["role": "user", "content": text]
-            ],
-            "temperature": 0.7
+            "messages": messages
         ]
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "DeepSeek", endpoint: "chat/completions")
         } catch {
-            return Fail(error: AIServiceError.networkError(error)).eraseToAnyPublisher()
+            logError(error, provider: "DeepSeek", endpoint: "chat/completions")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
         }
         
         return URLSession.shared.dataTaskPublisher(for: request)
-            .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "DeepSeek", endpoint: "chat/completions")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    throw AIServiceError.unknownError
+                    throw AIServiceError.invalidResponse
                 }
                 
                 if httpResponse.statusCode != 200 {
-                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
-                        throw AIServiceError.apiError(errorMessage)
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
                     }
-                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
                 }
                 
                 return data
             }
             .decode(type: OpenAIResponse.self, decoder: JSONDecoder())
+            .map { response in
+                guard let choice = response.choices.first else {
+                    return "No response generated"
+                }
+                return choice.message.content
+            }
             .mapError { error in
+                self.logError(error, provider: "DeepSeek", endpoint: "chat/completions")
                 if let aiError = error as? AIServiceError {
                     return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
                 }
-                return AIServiceError.decodingError(error)
-            }
-            .map { response in
-                response.choices.first?.message.content ?? "No response from the model."
             }
             .eraseToAnyPublisher()
     }
@@ -568,9 +824,15 @@ class AIService {
         var request = URLRequest(url: url)
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        // Log the request
+        logRequest(request, provider: "DeepSeek", endpoint: "models")
+        
         return URLSession.shared.dataTaskPublisher(for: request)
             .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "DeepSeek", endpoint: "models")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw AIServiceError.unknownError
                 }
@@ -587,6 +849,7 @@ class AIService {
             }
             .decode(type: DeepSeekModelsResponse.self, decoder: JSONDecoder())
             .mapError { error in
+                self.logError(error, provider: "DeepSeek", endpoint: "models")
                 if let aiError = error as? AIServiceError {
                     return aiError
                 }
@@ -600,8 +863,13 @@ class AIService {
     
     // MARK: - Ollama
     
-    private func sendOllamaPrompt(text: String, model: String, endpoint: String) -> AnyPublisher<String, AIServiceError> {
-        guard let url = URL(string: "\(endpoint)/api/generate") else {
+    private func sendOllamaPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        endpoint: String
+    ) -> AnyPublisher<String, AIServiceError> {
+        guard let url = URL(string: "\(endpoint)/api/chat") else {
             return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
         }
         
@@ -609,43 +877,62 @@ class AIService {
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        var messages: [[String: Any]] = []
+        
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        
+        messages.append(["role": "user", "content": text])
+        
         let requestBody: [String: Any] = [
             "model": model,
-            "prompt": text,
+            "messages": messages,
             "stream": false
         ]
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "Ollama", endpoint: "chat")
         } catch {
-            return Fail(error: AIServiceError.networkError(error)).eraseToAnyPublisher()
+            logError(error, provider: "Ollama", endpoint: "chat")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
         }
         
         return URLSession.shared.dataTaskPublisher(for: request)
-            .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Ollama", endpoint: "chat")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    throw AIServiceError.unknownError
+                    throw AIServiceError.invalidResponse
                 }
                 
                 if httpResponse.statusCode != 200 {
-                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = errorJson["error"] as? String {
-                        throw AIServiceError.apiError(errorMessage)
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
                     }
-                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
                 }
                 
                 return data
             }
-            .decode(type: OllamaResponse.self, decoder: JSONDecoder())
+            .decode(type: OllamaChatResponse.self, decoder: JSONDecoder())
+            .map { response in
+                return response.message.content
+            }
             .mapError { error in
+                self.logError(error, provider: "Ollama", endpoint: "chat")
                 if let aiError = error as? AIServiceError {
                     return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
                 }
-                return AIServiceError.decodingError(error)
             }
-            .map { $0.response }
             .eraseToAnyPublisher()
     }
     
@@ -654,9 +941,17 @@ class AIService {
             return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
         }
         
-        return URLSession.shared.dataTaskPublisher(for: url)
+        let request = URLRequest(url: url)
+        
+        // Log the request
+        logRequest(request, provider: "Ollama", endpoint: "tags")
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
             .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Ollama", endpoint: "tags")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw AIServiceError.unknownError
                 }
@@ -673,6 +968,7 @@ class AIService {
             }
             .decode(type: OllamaModelsResponse.self, decoder: JSONDecoder())
             .mapError { error in
+                self.logError(error, provider: "Ollama", endpoint: "tags")
                 if let aiError = error as? AIServiceError {
                     return aiError
                 }
@@ -686,7 +982,12 @@ class AIService {
     
     // MARK: - Mistral
     
-    private func sendMistralPrompt(text: String, model: String, apiKey: String) -> AnyPublisher<String, AIServiceError> {
+    private func sendMistralPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        apiKey: String
+    ) -> AnyPublisher<String, AIServiceError> {
         guard !apiKey.isEmpty else {
             return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
         }
@@ -700,46 +1001,64 @@ class AIService {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        var messages: [[String: Any]] = []
+        
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        
+        messages.append(["role": "user", "content": text])
+        
         let requestBody: [String: Any] = [
             "model": model,
-            "messages": [
-                ["role": "user", "content": text]
-            ],
+            "messages": messages,
             "temperature": 0.7
         ]
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "Mistral", endpoint: "chat/completions")
         } catch {
-            return Fail(error: AIServiceError.networkError(error)).eraseToAnyPublisher()
+            logError(error, provider: "Mistral", endpoint: "chat/completions")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
         }
         
         return URLSession.shared.dataTaskPublisher(for: request)
-            .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Mistral", endpoint: "chat/completions")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    throw AIServiceError.unknownError
+                    throw AIServiceError.invalidResponse
                 }
                 
                 if httpResponse.statusCode != 200 {
-                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
-                        throw AIServiceError.apiError(errorMessage)
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
                     }
-                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
                 }
                 
                 return data
             }
             .decode(type: MistralResponse.self, decoder: JSONDecoder())
+            .map { response in
+                guard let choice = response.choices.first else {
+                    return "No response generated"
+                }
+                return choice.message.content
+            }
             .mapError { error in
+                self.logError(error, provider: "Mistral", endpoint: "chat/completions")
                 if let aiError = error as? AIServiceError {
                     return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
                 }
-                return AIServiceError.decodingError(error)
-            }
-            .map { response in
-                response.choices.first?.message.content ?? "No response from the model."
             }
             .eraseToAnyPublisher()
     }
@@ -756,9 +1075,15 @@ class AIService {
         var request = URLRequest(url: url)
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        // Log the request
+        logRequest(request, provider: "Mistral", endpoint: "models")
+        
         return URLSession.shared.dataTaskPublisher(for: request)
             .mapError { AIServiceError.networkError($0) }
             .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Mistral", endpoint: "models")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw AIServiceError.unknownError
                 }
@@ -775,6 +1100,7 @@ class AIService {
             }
             .decode(type: MistralModelsResponse.self, decoder: JSONDecoder())
             .mapError { error in
+                self.logError(error, provider: "Mistral", endpoint: "models")
                 if let aiError = error as? AIServiceError {
                     return aiError
                 }
@@ -816,6 +1142,14 @@ struct AnthropicResponse: Decodable {
 
 struct OllamaResponse: Decodable {
     let response: String
+}
+
+struct OllamaChatResponse: Decodable {
+    struct Message: Decodable {
+        let content: String
+    }
+    
+    let message: Message
 }
 
 struct GoogleAIResponse: Decodable {
@@ -911,4 +1245,56 @@ struct MistralModelsResponse: Decodable {
 
 struct Capabilities: Decodable {
     let completion_chat: Bool
+}
+
+// MARK: - Error Handling Extension
+extension AIServiceError {
+    // Returns a user-friendly error message
+    var userFriendlyMessage: String {
+        switch self {
+        case .invalidURL:
+            return "Invalid URL configuration"
+        case .invalidAPIKey:
+            return "Invalid API key"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .decodingError(let error):
+            return "Failed to decode response: \(error.localizedDescription)"
+        case .apiError(let message):
+            return message
+        case .unknownError:
+            return "An unknown error occurred"
+        case .invalidRequestData(let error):
+            return "Invalid request data: \(error.localizedDescription)"
+        case .invalidResponse:
+            return "Invalid response from server"
+        case .requestFailed(let code, let message):
+            // Try to extract a clean error message from JSON response
+            if let data = message.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                
+                // Anthropic format: {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}
+                if let type = json["type"] as? String, type == "error",
+                   let error = json["error"] as? [String: Any],
+                   let errorType = error["type"] as? String,
+                   let errorMsg = error["message"] as? String {
+                    return "Error (\(errorType)): \(errorMsg)"
+                }
+                
+                // Standard error format with message
+                if let error = json["error"] as? [String: Any],
+                   let errorMsg = error["message"] as? String {
+                    return "Error: \(errorMsg)"
+                }
+                
+                // Simple error with message
+                if let errorMsg = json["message"] as? String {
+                    return "Error: \(errorMsg)" 
+                }
+            }
+            return "Request failed (HTTP \(code)): \(message)"
+        case .unknown(let error):
+            return "Error: \(error.localizedDescription)"
+        }
+    }
 } 
