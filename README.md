@@ -25,7 +25,7 @@ A-Instant eliminates the need to switch between apps, copy/paste, and wait for r
 - Access to an AI provider API (OpenAI, Anthropic, Google, Groq, DeepSeek, Mistral) or Ollama running locally
 
 ### Steps
-1. Download the latest release from the [Releases page](https://github.com/YOUR_USERNAME/a-instant/releases)
+1. Download the latest release from the [Releases page](https://github.com/poliva/a-instant/releases)
 2. Unzip the file (macOS usually does this automatically)
 3. Move the app to your Applications folder
 4. When prompted, grant accessibility permissions in System Settings > Privacy & Security > Accessibility
