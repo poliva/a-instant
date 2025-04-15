@@ -12,6 +12,50 @@ enum AIServiceError: Error {
     case invalidResponse
     case requestFailed(Int, String)
     case unknown(Error)
+    
+    var userFriendlyMessage: String {
+        switch self {
+        case .invalidURL:
+            return "Invalid URL configuration"
+        case .invalidAPIKey:
+            return "Invalid API key"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .decodingError(let error):
+            return "Failed to decode response: \(error.localizedDescription)"
+        case .apiError(let message):
+            return message
+        case .unknownError:
+            return "An unknown error occurred"
+        case .invalidRequestData(let error):
+            return "Invalid request data: \(error.localizedDescription)"
+        case .invalidResponse:
+            return "Invalid response from server"
+        case .requestFailed(let code, let message):
+            if let data = message.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                
+                if let type = json["type"] as? String, type == "error",
+                   let error = json["error"] as? [String: Any],
+                   let errorType = error["type"] as? String,
+                   let errorMsg = error["message"] as? String {
+                    return "Error (\(errorType)): \(errorMsg)"
+                }
+                
+                if let error = json["error"] as? [String: Any],
+                   let errorMsg = error["message"] as? String {
+                    return "Error: \(errorMsg)"
+                }
+                
+                if let errorMsg = json["message"] as? String {
+                    return "Error: \(errorMsg)"
+                }
+            }
+            return "Request failed (HTTP \(code)): \(message)"
+        case .unknown(let error):
+            return "Error: \(error.localizedDescription)"
+        }
+    }
 }
 
 class AIService {
@@ -1245,56 +1289,4 @@ struct MistralModelsResponse: Decodable {
 
 struct Capabilities: Decodable {
     let completion_chat: Bool
-}
-
-// MARK: - Error Handling Extension
-extension AIServiceError {
-    // Returns a user-friendly error message
-    var userFriendlyMessage: String {
-        switch self {
-        case .invalidURL:
-            return "Invalid URL configuration"
-        case .invalidAPIKey:
-            return "Invalid API key"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        case .decodingError(let error):
-            return "Failed to decode response: \(error.localizedDescription)"
-        case .apiError(let message):
-            return message
-        case .unknownError:
-            return "An unknown error occurred"
-        case .invalidRequestData(let error):
-            return "Invalid request data: \(error.localizedDescription)"
-        case .invalidResponse:
-            return "Invalid response from server"
-        case .requestFailed(let code, let message):
-            // Try to extract a clean error message from JSON response
-            if let data = message.data(using: .utf8),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                
-                // Anthropic format: {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}
-                if let type = json["type"] as? String, type == "error",
-                   let error = json["error"] as? [String: Any],
-                   let errorType = error["type"] as? String,
-                   let errorMsg = error["message"] as? String {
-                    return "Error (\(errorType)): \(errorMsg)"
-                }
-                
-                // Standard error format with message
-                if let error = json["error"] as? [String: Any],
-                   let errorMsg = error["message"] as? String {
-                    return "Error: \(errorMsg)"
-                }
-                
-                // Simple error with message
-                if let errorMsg = json["message"] as? String {
-                    return "Error: \(errorMsg)" 
-                }
-            }
-            return "Request failed (HTTP \(code)): \(message)"
-        case .unknown(let error):
-            return "Error: \(error.localizedDescription)"
-        }
-    }
 } 

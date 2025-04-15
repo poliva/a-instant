@@ -55,6 +55,14 @@ class SettingsViewModel: ObservableObject {
                 self?.updateAutomaticUpdatesStatus(newValue)
             }
             .store(in: &cancellables)
+            
+        // Set up observer for provider changes to load the appropriate cached models
+        $selectedProvider
+            .dropFirst() // Skip initial value
+            .sink { [weak self] newProvider in
+                self?.loadCachedModels()
+            }
+            .store(in: &cancellables)
     }
     
     func loadSettings() {
@@ -114,6 +122,9 @@ class SettingsViewModel: ObservableObject {
         
         // Apply auto-launch setting
         updateAutoLaunchStatus()
+        
+        // Load cached models for the current provider
+        loadCachedModels()
     }
     
     func saveSettings() {
@@ -223,19 +234,50 @@ class SettingsViewModel: ObservableObject {
                     
                     if case .failure(let error) = completion {
                         // Extract a user-friendly error message
-                        if let apiError = error as? AIServiceError {
-                            self?.modelLoadError = apiError.userFriendlyMessage
-                        } else {
-                            self?.modelLoadError = error.localizedDescription
-                        }
+                        self?.modelLoadError = (error as? AIServiceError)?.userFriendlyMessage ?? error.localizedDescription
                         self?.availableModels = []
                     }
                 },
                 receiveValue: { [weak self] models in
-                    self?.availableModels = models
+                    guard let self = self else { return }
+                    self.availableModels = models
+                    
+                    // Save models to UserDefaults for caching
+                    self.saveModelsToCache(models)
+                    
+                    // If current model is empty and we have models, set the first one
+                    if self.currentModel.isEmpty && !models.isEmpty {
+                        self.setCurrentModel(models[0])
+                    }
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    private func saveModelsToCache(_ models: [String]) {
+        let cacheKey = selectedProvider.cachedModelsUserDefaultsKey
+        do {
+            let data = try JSONEncoder().encode(models)
+            UserDefaults.standard.set(data, forKey: cacheKey)
+        } catch {
+            Logger.shared.log("Error caching models: \(error)")
+        }
+    }
+    
+    func loadCachedModels() {
+        let cacheKey = selectedProvider.cachedModelsUserDefaultsKey
+        if let data = UserDefaults.standard.data(forKey: cacheKey) {
+            do {
+                let models = try JSONDecoder().decode([String].self, from: data)
+                availableModels = models
+                Logger.shared.log("Loaded \(models.count) cached models for \(selectedProvider.rawValue)")
+            } catch {
+                Logger.shared.log("Error loading cached models: \(error)")
+                availableModels = []
+            }
+        } else {
+            availableModels = []
+        }
     }
     
     var currentAPIKey: String {
@@ -267,6 +309,14 @@ class SettingsViewModel: ObservableObject {
         if availableModels.isEmpty && !currentModel.isEmpty {
             return [currentModel]
         }
+        
+        // If the current model is not in the available models list, add it
+        if !currentModel.isEmpty && !availableModels.contains(currentModel) {
+            var models = availableModels
+            models.append(currentModel)
+            return models.sorted()
+        }
+        
         return availableModels
     }
     

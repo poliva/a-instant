@@ -11,6 +11,12 @@ class PromptViewModel: ObservableObject {
     @Published var savedPrompts: [SavedPrompt] = []
     @Published var promptSearchText: String = ""
     
+    // Provider and model selection
+    @Published var selectedProvider: AIProvider
+    @Published var selectedModel: String = ""
+    @Published var availableProviders: [AIProvider] = []
+    @Published var availableModels: [String] = []
+    
     // Filtered prompts based on search text
     var filteredSavedPrompts: [SavedPrompt] {
         if promptSearchText.isEmpty {
@@ -30,7 +36,76 @@ class PromptViewModel: ObservableObject {
     init(selectedText: String, originalApplication: NSRunningApplication?) {
         self.selectedText = selectedText
         self.originalApplication = originalApplication
+        
+        // Initialize provider/model settings
+        let providerString = UserDefaults.standard.string(forKey: UserDefaultsKeys.aiProvider) ?? AIProvider.openAI.rawValue
+        self.selectedProvider = AIProvider.allCases.first { $0.rawValue == providerString } ?? .openAI
+        
+        // Load saved prompts
         loadSavedPrompts()
+        
+        // Load available providers and models
+        loadAvailableProviders()
+        loadModelsForCurrentProvider()
+    }
+    
+    // Load all providers that have at least one model configured
+    func loadAvailableProviders() {
+        availableProviders = AIProvider.allCases.filter { provider in
+            let modelKey = provider.modelUserDefaultsKey
+            let apiKey = provider.apiKeyUserDefaultsKey
+            return UserDefaults.standard.string(forKey: modelKey) != nil && 
+                   UserDefaults.standard.string(forKey: apiKey) != nil &&
+                   !UserDefaults.standard.string(forKey: apiKey)!.isEmpty
+        }
+    }
+    
+    // Load available models for the current provider
+    func loadModelsForCurrentProvider() {
+        let modelKey = selectedProvider.modelUserDefaultsKey
+        if let model = UserDefaults.standard.string(forKey: modelKey) {
+            selectedModel = model
+        } else {
+            selectedModel = ""
+        }
+        
+        // Load models from cache
+        loadCachedModels()
+    }
+    
+    // Load models from the cache
+    private func loadCachedModels() {
+        let cacheKey = selectedProvider.cachedModelsUserDefaultsKey
+        if let data = UserDefaults.standard.data(forKey: cacheKey) {
+            do {
+                let models = try JSONDecoder().decode([String].self, from: data)
+                availableModels = models
+            } catch {
+                Logger.shared.log("Error loading cached models: \(error)")
+                availableModels = []
+            }
+        } else {
+            availableModels = []
+        }
+    }
+    
+    // Change the selected provider and update available models
+    func changeProvider(_ provider: AIProvider) {
+        selectedProvider = provider
+        
+        // Save selection to user defaults
+        UserDefaults.standard.set(provider.rawValue, forKey: UserDefaultsKeys.aiProvider)
+        
+        // Load the updated models list
+        loadModelsForCurrentProvider()
+    }
+    
+    // Change the selected model
+    func changeModel(_ model: String) {
+        selectedModel = model
+        
+        // Save selection to user defaults
+        UserDefaults.standard.set(model, forKey: selectedProvider.modelUserDefaultsKey)
     }
     
     func sendPrompt() {
@@ -39,14 +114,7 @@ class PromptViewModel: ObservableObject {
         isProcessing = true
         error = nil
         
-        // Get current settings
-        let providerString = UserDefaults.standard.string(forKey: UserDefaultsKeys.aiProvider) ?? AIProvider.openAI.rawValue
-        let provider = AIProvider.allCases.first { $0.rawValue == providerString } ?? .openAI
-        
-        let modelKey = provider.modelUserDefaultsKey
-        let model = UserDefaults.standard.string(forKey: modelKey) ?? ""
-        
-        let apiKey = UserDefaults.standard.string(forKey: provider.apiKeyUserDefaultsKey) ?? ""
+        let apiKey = UserDefaults.standard.string(forKey: selectedProvider.apiKeyUserDefaultsKey) ?? ""
         
         // System prompt with the text transformation instructions
         let systemPrompt = """
@@ -71,8 +139,8 @@ Selected text:
         aiService.sendPrompt(
             text: userPrompt,
             systemPrompt: systemPrompt,
-            provider: provider,
-            model: model,
+            provider: selectedProvider,
+            model: selectedModel,
             apiKey: apiKey
         )
         .receive(on: DispatchQueue.main)
@@ -82,11 +150,7 @@ Selected text:
                 
                 if case .failure(let error) = completion {
                     // Extract a user-friendly error message
-                    if let apiError = error as? AIServiceError {
-                        self?.error = apiError.userFriendlyMessage
-                    } else {
-                        self?.error = error.localizedDescription
-                    }
+                    self?.error = (error as? AIServiceError)?.userFriendlyMessage ?? error.localizedDescription
                 }
             },
             receiveValue: { [weak self] response in
@@ -154,7 +218,7 @@ Selected text:
             do {
                 savedPrompts = try JSONDecoder().decode([SavedPrompt].self, from: data)
             } catch {
-                print("Error loading saved prompts: \(error)")
+                Logger.shared.log("Error loading saved prompts: \(error)")
                 savedPrompts = []
             }
         }
@@ -165,7 +229,7 @@ Selected text:
             let data = try JSONEncoder().encode(savedPrompts)
             UserDefaults.standard.set(data, forKey: UserDefaultsKeys.savedPrompts)
         } catch {
-            print("Error saving prompts: \(error)")
+            Logger.shared.log("Error saving prompts: \(error)")
         }
     }
 } 

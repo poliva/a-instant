@@ -10,7 +10,7 @@ class PromptWindowController: NSWindowController {
     convenience init() {
         // Create the window
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 550, height: 350),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 170),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -20,7 +20,7 @@ class PromptWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.backgroundColor = NSColor(white: 0.1, alpha: 0.9)
+        window.backgroundColor = NSColor.black.withAlphaComponent(0.9)
         window.hasShadow = true
         window.level = .floating
         
@@ -30,7 +30,7 @@ class PromptWindowController: NSWindowController {
         
         // Add rounded corners
         window.contentView?.wantsLayer = true
-        window.contentView?.layer?.cornerRadius = 12
+        window.contentView?.layer?.cornerRadius = 20
         window.contentView?.layer?.masksToBounds = true
         
         self.init(window: window)
@@ -41,7 +41,7 @@ class PromptWindowController: NSWindowController {
     
     func showWindow(with text: String, frontmostApp: NSRunningApplication?) {
         guard !text.isEmpty else {
-            print("Warning: Attempted to show prompt window with empty text")
+            Logger.shared.log("Warning: Attempted to show prompt window with empty text")
             return
         }
         

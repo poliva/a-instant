@@ -22,6 +22,15 @@ struct UserDefaultsKeys {
     static let mistralModel = "mistralModel"
     static let enableAutomaticUpdates = "enableAutomaticUpdates"
     static let enableDebugLogging = "enableDebugLogging"
+    
+    // Cached model lists
+    static let cachedOpenAIModels = "cachedOpenAIModels"
+    static let cachedAnthropicModels = "cachedAnthropicModels"
+    static let cachedGoogleModels = "cachedGoogleModels"
+    static let cachedGroqModels = "cachedGroqModels"
+    static let cachedDeepSeekModels = "cachedDeepSeekModels"
+    static let cachedMistralModels = "cachedMistralModels"
+    static let cachedOllamaModels = "cachedOllamaModels"
 }
 
 enum AIProvider: String, CaseIterable, Identifiable {
@@ -56,6 +65,18 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .deepSeek: return UserDefaultsKeys.deepSeekModel
         case .mistral: return UserDefaultsKeys.mistralModel
         case .ollama: return UserDefaultsKeys.ollamaModel
+        }
+    }
+    
+    var cachedModelsUserDefaultsKey: String {
+        switch self {
+        case .openAI: return UserDefaultsKeys.cachedOpenAIModels
+        case .anthropic: return UserDefaultsKeys.cachedAnthropicModels
+        case .google: return UserDefaultsKeys.cachedGoogleModels
+        case .groq: return UserDefaultsKeys.cachedGroqModels
+        case .deepSeek: return UserDefaultsKeys.cachedDeepSeekModels
+        case .mistral: return UserDefaultsKeys.cachedMistralModels
+        case .ollama: return UserDefaultsKeys.cachedOllamaModels
         }
     }
 }
