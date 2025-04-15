@@ -18,6 +18,8 @@ struct UserDefaultsKeys {
     static let savedPrompts = "savedPrompts"
     static let shortcuts = "shortcuts"
     static let autoLaunchOnStartup = "autoLaunchOnStartup"
+    static let mistralKey = "mistralKey"
+    static let mistralModel = "mistralModel"
 }
 
 enum AIProvider: String, CaseIterable, Identifiable {
@@ -26,6 +28,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     case google = "Google"
     case groq = "Groq"
     case deepSeek = "DeepSeek"
+    case mistral = "Mistral"
     case ollama = "Ollama"
     
     var id: String { self.rawValue }
@@ -37,6 +40,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .google: return UserDefaultsKeys.googleKey
         case .groq: return UserDefaultsKeys.groqKey
         case .deepSeek: return UserDefaultsKeys.deepSeekKey
+        case .mistral: return UserDefaultsKeys.mistralKey
         case .ollama: return UserDefaultsKeys.ollamaEndpoint
         }
     }
@@ -48,6 +52,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .google: return UserDefaultsKeys.googleModel
         case .groq: return UserDefaultsKeys.groqModel
         case .deepSeek: return UserDefaultsKeys.deepSeekModel
+        case .mistral: return UserDefaultsKeys.mistralModel
         case .ollama: return UserDefaultsKeys.ollamaModel
         }
     }

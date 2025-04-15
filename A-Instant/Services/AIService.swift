@@ -28,6 +28,8 @@ class AIService {
             return sendGroqPrompt(text: text, model: model, apiKey: apiKey)
         case .deepSeek:
             return sendDeepSeekPrompt(text: text, model: model, apiKey: apiKey)
+        case .mistral:
+            return sendMistralPrompt(text: text, model: model, apiKey: apiKey)
         case .ollama:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
             return sendOllamaPrompt(text: text, model: model, endpoint: endpoint)
@@ -50,6 +52,8 @@ class AIService {
             return fetchGroqModels(apiKey: apiKey)
         case .deepSeek:
             return fetchDeepSeekModels(apiKey: apiKey)
+        case .mistral:
+            return fetchMistralModels(apiKey: apiKey)
         case .ollama:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
             return fetchOllamaModels(endpoint: endpoint)
@@ -679,6 +683,112 @@ class AIService {
             }
             .eraseToAnyPublisher()
     }
+    
+    // MARK: - Mistral
+    
+    private func sendMistralPrompt(text: String, model: String, apiKey: String) -> AnyPublisher<String, AIServiceError> {
+        guard !apiKey.isEmpty else {
+            return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "https://api.mistral.ai/v1/chat/completions") else {
+            return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        
+        let requestBody: [String: Any] = [
+            "model": model,
+            "messages": [
+                ["role": "user", "content": text]
+            ],
+            "temperature": 0.7
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            return Fail(error: AIServiceError.networkError(error)).eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .mapError { AIServiceError.networkError($0) }
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw AIServiceError.unknownError
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
+                        throw AIServiceError.apiError(errorMessage)
+                    }
+                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
+                }
+                
+                return data
+            }
+            .decode(type: MistralResponse.self, decoder: JSONDecoder())
+            .mapError { error in
+                if let aiError = error as? AIServiceError {
+                    return aiError
+                }
+                return AIServiceError.decodingError(error)
+            }
+            .map { response in
+                response.choices.first?.message.content ?? "No response from the model."
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    private func fetchMistralModels(apiKey: String) -> AnyPublisher<[String], AIServiceError> {
+        guard !apiKey.isEmpty else {
+            return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "https://api.mistral.ai/v1/models") else {
+            return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .mapError { AIServiceError.networkError($0) }
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw AIServiceError.unknownError
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
+                        throw AIServiceError.apiError(errorMessage)
+                    }
+                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
+                }
+                
+                return data
+            }
+            .decode(type: MistralModelsResponse.self, decoder: JSONDecoder())
+            .mapError { error in
+                if let aiError = error as? AIServiceError {
+                    return aiError
+                }
+                return AIServiceError.decodingError(error)
+            }
+            .map { response in
+                // Filter for chat models and sort
+                return response.data
+                    .filter { $0.capabilities.completion_chat }
+                    .map { $0.id }
+                    .sorted()
+            }
+            .eraseToAnyPublisher()
+    }
 }
 
 // MARK: - Response Models
@@ -776,4 +886,29 @@ struct OllamaModelsResponse: Decodable {
     }
     
     let models: [Model]
+}
+
+struct MistralResponse: Decodable {
+    struct Message: Decodable {
+        let content: String
+    }
+    
+    struct Choice: Decodable {
+        let message: Message
+    }
+    
+    let choices: [Choice]
+}
+
+struct MistralModelsResponse: Decodable {
+    struct Model: Decodable {
+        let id: String
+        let capabilities: Capabilities
+    }
+    
+    let data: [Model]
+}
+
+struct Capabilities: Decodable {
+    let completion_chat: Bool
 } 

@@ -471,6 +471,8 @@ struct SettingsView: View {
             return $viewModel.groqKey
         case .deepSeek:
             return $viewModel.deepSeekKey
+        case .mistral:
+            return $viewModel.mistralKey
         case .ollama:
             return .constant("")
         }
@@ -488,6 +490,8 @@ struct SettingsView: View {
             return URL(string: "https://console.groq.com/keys")
         case .deepSeek:
             return URL(string: "https://platform.deepseek.com/api-keys")
+        case .mistral:
+            return URL(string: "https://console.mistral.ai/api-keys")
         case .ollama:
             return URL(string: "https://ollama.com/download")
         }

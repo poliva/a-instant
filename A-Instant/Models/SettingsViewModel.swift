@@ -10,6 +10,7 @@ class SettingsViewModel: ObservableObject {
     @Published var googleKey: String = ""
     @Published var groqKey: String = ""
     @Published var deepSeekKey: String = ""
+    @Published var mistralKey: String = ""
     @Published var ollamaEndpoint: String = "http://localhost:11434"
     @Published var autoLaunchOnStartup: Bool = true
     
@@ -18,6 +19,7 @@ class SettingsViewModel: ObservableObject {
     @Published var googleModel: String = ""
     @Published var groqModel: String = ""
     @Published var deepSeekModel: String = ""
+    @Published var mistralModel: String = ""
     @Published var ollamaModel: String = ""
     
     @Published var availableModels: [String] = []
@@ -51,6 +53,7 @@ class SettingsViewModel: ObservableObject {
         googleKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.googleKey) ?? ""
         groqKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.groqKey) ?? ""
         deepSeekKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.deepSeekKey) ?? ""
+        mistralKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.mistralKey) ?? ""
         ollamaEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
         
         // Load model selections
@@ -59,6 +62,7 @@ class SettingsViewModel: ObservableObject {
         googleModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.googleModel) ?? ""
         groqModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.groqModel) ?? ""
         deepSeekModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.deepSeekModel) ?? ""
+        mistralModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.mistralModel) ?? ""
         ollamaModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaModel) ?? ""
         
         // Load saved prompts
@@ -99,6 +103,7 @@ class SettingsViewModel: ObservableObject {
         UserDefaults.standard.set(googleKey, forKey: UserDefaultsKeys.googleKey)
         UserDefaults.standard.set(groqKey, forKey: UserDefaultsKeys.groqKey)
         UserDefaults.standard.set(deepSeekKey, forKey: UserDefaultsKeys.deepSeekKey)
+        UserDefaults.standard.set(mistralKey, forKey: UserDefaultsKeys.mistralKey)
         UserDefaults.standard.set(ollamaEndpoint, forKey: UserDefaultsKeys.ollamaEndpoint)
         
         // Save model selections
@@ -107,6 +112,7 @@ class SettingsViewModel: ObservableObject {
         UserDefaults.standard.set(googleModel, forKey: UserDefaultsKeys.googleModel)
         UserDefaults.standard.set(groqModel, forKey: UserDefaultsKeys.groqModel)
         UserDefaults.standard.set(deepSeekModel, forKey: UserDefaultsKeys.deepSeekModel)
+        UserDefaults.standard.set(mistralModel, forKey: UserDefaultsKeys.mistralModel)
         UserDefaults.standard.set(ollamaModel, forKey: UserDefaultsKeys.ollamaModel)
         
         // Save prompts
@@ -166,6 +172,13 @@ class SettingsViewModel: ObservableObject {
                 isLoadingModels = false
                 return
             }
+        case .mistral:
+            apiKey = mistralKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your Mistral API key in the API tab"
+                isLoadingModels = false
+                return
+            }
         case .ollama:
             apiKey = "" // Ollama doesn't use API keys
         }
@@ -195,6 +208,7 @@ class SettingsViewModel: ObservableObject {
         case .google: return googleKey
         case .groq: return groqKey
         case .deepSeek: return deepSeekKey
+        case .mistral: return mistralKey
         case .ollama: return "" // Ollama doesn't use API keys
         }
     }
@@ -206,6 +220,7 @@ class SettingsViewModel: ObservableObject {
         case .google: return googleModel
         case .groq: return groqModel
         case .deepSeek: return deepSeekModel
+        case .mistral: return mistralModel
         case .ollama: return ollamaModel
         }
     }
@@ -227,6 +242,9 @@ class SettingsViewModel: ObservableObject {
         case .deepSeek:
             deepSeekModel = model
             UserDefaults.standard.set(model, forKey: UserDefaultsKeys.deepSeekModel)
+        case .mistral:
+            mistralModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.mistralModel)
         case .ollama:
             ollamaModel = model
             UserDefaults.standard.set(model, forKey: UserDefaultsKeys.ollamaModel)
