@@ -49,10 +49,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         
-        // Check for updates
+        // Set up update checking
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            // Initial check is performed in checkForUpdates
             self?.checkForUpdates()
+            
+            // Start periodic checks after the initial check
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.setupPeriodicUpdateChecks()
+            }
         }
+        
+        // Register for update notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUpdateAvailableNotification(_:)),
+            name: Notification.Name("UpdateAvailableNotification"),
+            object: nil
+        )
         
         Logger.shared.log("Application initialization complete")
     }
@@ -82,6 +96,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     
     func applicationWillTerminate(_ notification: Notification) {
         keyboardMonitor?.stopMonitoring()
+        updateChecker.stopPeriodicChecks()
+        
+        // Remove all notification observers
+        NotificationCenter.default.removeObserver(self)
+        
         Logger.shared.log("Application terminating")
     }
     
@@ -408,6 +427,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+    
+    private func setupPeriodicUpdateChecks() {
+        Logger.shared.log("Setting up periodic update checks")
+        updateChecker.startPeriodicChecks()
+    }
+    
+    @objc private func handleUpdateAvailableNotification(_ notification: Notification) {
+        guard let updateURL = notification.userInfo?["updateURL"] as? URL else {
+            Logger.shared.log("Update notification received but no URL found")
+            return
+        }
+        
+        Logger.shared.log("Update notification received with URL: \(updateURL)")
+        showUpdateAvailableAlert(updateURL: updateURL)
     }
     
     // MARK: - NSWindowDelegate

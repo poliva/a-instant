@@ -4,6 +4,8 @@ import Foundation
 class UpdateChecker {
     private let githubRepoPath = "poliva/a-instant"
     private let githubApiUrl = "https://api.github.com/repos/poliva/a-instant/releases/latest"
+    private var updateTimer: Timer?
+    private let checkInterval: TimeInterval = 24 * 60 * 60 // 24 hours in seconds
     
     /// GitHub release response structure
     private struct GitHubRelease: Decodable {
@@ -23,6 +25,74 @@ class UpdateChecker {
         case parsingError(Error)
         case noVersionFound
         case missingBundleInfo
+    }
+    
+    deinit {
+        stopPeriodicChecks()
+    }
+    
+    /// Starts periodic update checks
+    /// - Parameter showNoUpdatesAlert: Whether to show an alert when no updates are available
+    func startPeriodicChecks(showNoUpdatesAlert: Bool = false) {
+        stopPeriodicChecks() // Cancel any existing timer
+        
+        Logger.shared.log("Starting periodic update checks (interval: \(checkInterval) seconds)")
+        
+        // Create a repeating timer that fires every 24 hours
+        updateTimer = Timer.scheduledTimer(
+            withTimeInterval: checkInterval,
+            repeats: true
+        ) { [weak self] _ in
+            self?.checkForUpdates(completion: { result in
+                // Only handle successful updates, silently ignore errors
+                if case .success(let url) = result, let updateURL = url {
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(
+                            name: Notification.Name("UpdateAvailableNotification"),
+                            object: nil,
+                            userInfo: ["updateURL": updateURL]
+                        )
+                    }
+                }
+            })
+        }
+        
+        // Make sure the timer continues running in the background
+        updateTimer?.tolerance = 60 // 1 minute tolerance to allow better power management
+        RunLoop.main.add(updateTimer!, forMode: .common)
+        
+        // Ensure the timer is maintained across sleep/wake cycles
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationWillWakeUp),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+        
+        Logger.shared.log("Periodic update checks started")
+    }
+    
+    @objc private func applicationWillWakeUp(_ notification: Notification) {
+        Logger.shared.log("System woke from sleep, ensuring update timer is active")
+        // Trigger a check after wake up
+        checkForUpdates { _ in }
+        
+        // Restart timer if needed
+        if updateTimer == nil {
+            startPeriodicChecks()
+        }
+    }
+    
+    /// Stops periodic update checks
+    func stopPeriodicChecks() {
+        if let timer = updateTimer {
+            timer.invalidate()
+            updateTimer = nil
+            Logger.shared.log("Periodic update checks stopped")
+        }
+        
+        // Remove notification observers
+        NotificationCenter.default.removeObserver(self, name: NSWorkspace.didWakeNotification, object: nil)
     }
     
     /// Check for updates and call the completion handler with the result
