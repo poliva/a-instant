@@ -7,6 +7,8 @@ struct SettingsView: View {
     @State private var showingShortcutCreation = false
     @State private var showingPromptEditor = false
     @State private var editingPrompt: SavedPrompt?
+    @State private var promptToDelete: SavedPrompt?
+    @State private var showingDeleteConfirmation = false
     @State private var newPromptName = ""
     @State private var newPromptText = ""
     
@@ -323,10 +325,8 @@ struct SettingsView: View {
                             .buttonStyle(PlainButtonStyle())
                             
                             Button(action: {
-                                if let index = viewModel.savedPrompts.firstIndex(where: { $0.id == prompt.id }) {
-                                    viewModel.savedPrompts.remove(at: index)
-                                    viewModel.saveSettings()
-                                }
+                                promptToDelete = prompt
+                                showingDeleteConfirmation = true
                             }) {
                                 Image(systemName: "trash")
                                     .foregroundColor(.red)
@@ -346,6 +346,22 @@ struct SettingsView: View {
                     }
                 }
                 .listStyle(PlainListStyle())
+                .confirmationDialog(
+                    "Are you sure you want to delete this prompt?",
+                    isPresented: $showingDeleteConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button("Delete", role: .destructive) {
+                        if let prompt = promptToDelete, 
+                           let index = viewModel.savedPrompts.firstIndex(where: { $0.id == prompt.id }) {
+                            viewModel.savedPrompts.remove(at: index)
+                            viewModel.saveSettings()
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {
+                        promptToDelete = nil
+                    }
+                }
             }
             
             HStack {
