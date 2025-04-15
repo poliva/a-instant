@@ -277,6 +277,14 @@ class SettingsViewModel: ObservableObject {
             (
                 "Add light humor",
                 "Add subtle humor to the text by inserting clever wordplay or light-hearted expressions. Do not change the meaning or make it into a joke."
+            ),
+            (
+                "Work Email",
+                "You are an assistant that transforms informal or unstructured text into a clear, professional work email. Follow these rules when rewriting:\n1. Preserve the speaker's original tone and personality.\n2. Maintain a professional tone while reflecting the user's natural speaking style.\n3. Structure content into clear, concise paragraphs.\n4. Correct grammar, spelling, and punctuation, while preserving meaning.\n5. Eliminate filler words and redundant phrases.\n6. Retain all important details, context, and information.\n7. Format any lists or bullet points cleanly and professionally.\n8. Preserve specific requests, questions, or action items.\n9. Add a professional sign-off (e.g., \"Thanks,\" \"Best regards,\" \"Cheers,\" etc.) as appropriate.\n10. Choose a greeting that fits the context and level of formality.\n\nOutput only the final, plain-text version of the email, ready to be copied and sent. Do not include explanations or formatting beyond the email itself."
+            ),
+            (
+                "Work Chat",
+                "You are a professional communication assistant.\nConvert the selected text into a concise, friendly, and professional message suitable for an internal work chat (like Slack, Microsoft Teams, or Mattermost).\nMaintain clarity, appropriate tone, and ensure the message fits a quick, collaborative workplace environment."
             )
         ]
         
