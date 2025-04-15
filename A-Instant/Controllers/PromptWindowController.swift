@@ -8,9 +8,15 @@ class PromptWindowController: NSWindowController {
     private var originalApplication: NSRunningApplication?
     
     convenience init() {
+        // Get the non-destructive mode setting
+        let nonDestructiveMode = UserDefaults.standard.bool(forKey: UserDefaultsKeys.nonDestructiveMode)
+        
+        // Set initial height based on mode
+        let initialHeight: CGFloat = nonDestructiveMode ? 170 : 170
+        
         // Create the window
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 170),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: initialHeight),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false

@@ -14,7 +14,7 @@ A-Instant is an AI-powered text assistant that enhances productivity by enabling
 1. Select text in any application
 2. Double-tap your A-Instant trigger key
 3. Enter a prompt for the AI model
-4. The selected text will be replaced with the AI response
+4. The selected text will be replaced with the AI response (standard mode) or the AI response will be displayed in a separate area (non-destructive mode)
 
 A-Instant eliminates the need to switch between apps, copy/paste, and wait for results. Simply highlight, double-tap, and you're done!
 
@@ -41,7 +41,8 @@ A-Instant eliminates the need to switch between apps, copy/paste, and wait for r
 1. Select text in any application
 2. Double-tap your trigger key
 3. Enter your prompt in the popup window
-4. The selected text will be replaced with the AI response
+4. In standard mode: The selected text will be replaced with the AI response
+5. In non-destructive mode: The AI response will be displayed below your prompt, with options to copy or clear
 
 ## License
 

@@ -10,6 +10,9 @@ class PromptViewModel: ObservableObject {
     @Published var error: String? = nil
     @Published var savedPrompts: [SavedPrompt] = []
     @Published var promptSearchText: String = ""
+    @Published var aiResponse: String = ""
+    @Published var nonDestructiveMode: Bool = false
+    @Published var showResponseView: Bool = false
     
     // Provider and model selection
     @Published var selectedProvider: AIProvider
@@ -47,6 +50,9 @@ class PromptViewModel: ObservableObject {
         // Load available providers and models
         loadAvailableProviders()
         loadModelsForCurrentProvider()
+        
+        // Load non-destructive mode setting
+        nonDestructiveMode = UserDefaults.standard.bool(forKey: UserDefaultsKeys.nonDestructiveMode)
     }
     
     // Load all providers that have at least one model configured
@@ -116,12 +122,20 @@ class PromptViewModel: ObservableObject {
         
         let apiKey = UserDefaults.standard.string(forKey: selectedProvider.apiKeyUserDefaultsKey) ?? ""
         
-        // System prompt with the text transformation instructions
-        let systemPrompt = """
-You are a text transformation AI.
-Your task is to take a block of selected text and apply the given instruction to it.
-Return only the modified text, with no explanations, no introductions, and no quotation marks.
-"""
+        // Choose the appropriate system prompt based on mode
+        let systemPrompt = nonDestructiveMode 
+            ? """
+            You are a highly context-aware assistant.
+            Analyze the selected text to understand its meaning and context.
+            Provide a helpful, thoughtful response to the user's instruction.
+            Be specific and reference the content directly when relevant.
+            Return your output in plain text, without code formatting or markdown symbols, unless explicitly requested by the user.
+            """
+            : """
+            You are a text transformation AI.
+            Your task is to take a block of selected text and apply the given instruction to it.
+            Return ONLY the modified text, with no explanations, no introductions, no lead-ins, no conversation, no placeholders, no surrounding quotes, and no quotation marks.
+            """
         
         // User prompt with just the instruction and selected text
         let userPrompt = """
@@ -154,7 +168,14 @@ Selected text:
                 }
             },
             receiveValue: { [weak self] response in
-                self?.replaceSelectedText(with: response)
+                guard let self = self else { return }
+                
+                if self.nonDestructiveMode {
+                    self.aiResponse = response
+                    self.showResponseView = true
+                } else {
+                    self.replaceSelectedText(with: response)
+                }
             }
         )
         .store(in: &cancellables)

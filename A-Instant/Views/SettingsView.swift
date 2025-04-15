@@ -89,6 +89,13 @@ struct SettingsView: View {
                 Text("Logs detailed information for troubleshooting")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                
+                Toggle("Non-destructive processing mode", isOn: $viewModel.nonDestructiveMode)
+                    .padding(.top, 8)
+                
+                Text("Preserve selected text and show AI responses in a separate area")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
             Divider()

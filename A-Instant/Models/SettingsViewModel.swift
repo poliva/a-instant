@@ -15,6 +15,7 @@ class SettingsViewModel: ObservableObject {
     @Published var autoLaunchOnStartup: Bool = true
     @Published var enableAutomaticUpdates: Bool = true
     @Published var enableDebugLogging: Bool = false
+    @Published var nonDestructiveMode: Bool = false
     
     @Published var openAIModel: String = ""
     @Published var anthropicModel: String = ""
@@ -120,6 +121,9 @@ class SettingsViewModel: ObservableObject {
         // Load debug logging setting, defaulting to false if not set
         enableDebugLogging = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableDebugLogging) as? Bool ?? false
         
+        // Load non-destructive mode setting, defaulting to false if not set
+        nonDestructiveMode = UserDefaults.standard.object(forKey: UserDefaultsKeys.nonDestructiveMode) as? Bool ?? false
+        
         // Apply auto-launch setting
         updateAutoLaunchStatus()
         
@@ -168,6 +172,9 @@ class SettingsViewModel: ObservableObject {
         
         // Save debug logging setting
         UserDefaults.standard.set(enableDebugLogging, forKey: UserDefaultsKeys.enableDebugLogging)
+        
+        // Save non-destructive mode setting
+        UserDefaults.standard.set(nonDestructiveMode, forKey: UserDefaultsKeys.nonDestructiveMode)
         
         // Apply auto-launch setting
         updateAutoLaunchStatus()

@@ -22,6 +22,7 @@ struct UserDefaultsKeys {
     static let mistralModel = "mistralModel"
     static let enableAutomaticUpdates = "enableAutomaticUpdates"
     static let enableDebugLogging = "enableDebugLogging"
+    static let nonDestructiveMode = "nonDestructiveMode"
     
     // Cached model lists
     static let cachedOpenAIModels = "cachedOpenAIModels"

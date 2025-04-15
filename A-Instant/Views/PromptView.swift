@@ -20,7 +20,7 @@ struct PromptView: View {
                     .foregroundColor(.white)
                     .padding(12)
                     .padding(.trailing, 30) // Add padding to avoid overlapping with buttons
-                    .frame(minWidth: 350, minHeight: 85) // Taller to fit 3 lines
+                    .frame(minWidth: 500, minHeight: 85) // Taller to fit 3 lines
                     .overlay(
                         ZStack(alignment: .topLeading) {
                             if viewModel.promptText.isEmpty {
@@ -66,8 +66,100 @@ struct PromptView: View {
                     .popover(isPresented: $showingSavedPrompts) {
                         savedPromptsView
                     }
+                    
+                    Button(action: {
+                        viewModel.nonDestructiveMode.toggle()
+                        // Save the setting to UserDefaults
+                        UserDefaults.standard.set(viewModel.nonDestructiveMode, forKey: UserDefaultsKeys.nonDestructiveMode)
+                    }) {
+                        Image(systemName: viewModel.nonDestructiveMode ? "arrow.down.square.fill" : "arrow.uturn.left.square")
+                            .foregroundColor(viewModel.nonDestructiveMode ? .blue.opacity(0.9) : .white.opacity(0.8))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Toggle non-destructive mode: \(viewModel.nonDestructiveMode ? "On" : "Off")")
                 }
                 .padding(12)
+            }
+            
+            // Display original text when in non-destructive mode and showing response
+            if viewModel.nonDestructiveMode && viewModel.showResponseView {
+                Divider()
+                
+                VStack(alignment: .leading) {
+                    /*
+                    Text("Selected Text:")
+                        .font(.headline)
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                    
+                    ScrollView {
+                        Text(viewModel.selectedText)
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 100)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(8)
+                    .padding(.horizontal, 12)
+                    */
+                    
+                    Text("Response:")
+                        .font(.headline)
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                    
+                    ScrollView {
+                        Text(viewModel.aiResponse)
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 250)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(8)
+                    .padding(.horizontal, 12)
+                    
+                    HStack {
+                        Spacer()
+                        
+                        Button(action: {
+                            viewModel.showResponseView = false
+                            viewModel.aiResponse = ""
+                        }) {
+                            Text("Clear")
+                                .font(.headline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.gray.opacity(0.5))
+                                .foregroundColor(.white)
+                                .cornerRadius(16)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Button(action: {
+                            let pasteboard = NSPasteboard.general
+                            pasteboard.clearContents()
+                            pasteboard.setString(viewModel.aiResponse, forType: .string)
+                        }) {
+                            Text("Copy Response")
+                                .font(.headline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(16)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.horizontal, 8)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
             }
             
             // Bottom controls
@@ -102,6 +194,7 @@ struct PromptView: View {
                         // Model selector
                         Text(viewModel.selectedModel)
                             .font(.system(size: 12))
+                            .lineLimit(1)
                             .foregroundColor(.gray)
                             .padding(.vertical, 4)
                             .padding(.horizontal, 8)
@@ -133,6 +226,7 @@ struct PromptView: View {
                         .foregroundColor(.gray)
                         .font(.system(size: 11))
                         .padding(.leading, 12)
+                        .lineLimit(1)
                 }
                 
                 Spacer()
@@ -174,13 +268,34 @@ struct PromptView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(viewModel.promptText.isEmpty || viewModel.isProcessing)
+                    .padding(.trailing, 4) // Add extra padding on the right
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16) // Increase horizontal padding
             .padding(.vertical, 8)
             .background(Color.black)
         }
         .background(Color.black)
+        // Update window size when showing response in non-destructive mode
+        .onChange(of: viewModel.showResponseView) { oldValue, newValue in
+            if newValue && viewModel.nonDestructiveMode {
+                resizeWindow(height: 520)
+            } else if !newValue && viewModel.nonDestructiveMode {
+                resizeWindow(height: 170)
+            }
+        }
+    }
+    
+    private func resizeWindow(height: CGFloat) {
+        if let windowScene = NSApplication.shared.windows.first(where: { $0.isKeyWindow }) {
+            let newFrame = NSRect(
+                x: windowScene.frame.origin.x,
+                y: windowScene.frame.origin.y - (height - windowScene.frame.height),
+                width: windowScene.frame.width, // Keep existing width
+                height: height
+            )
+            windowScene.setFrame(newFrame, display: true, animate: true)
+        }
     }
     
     private var savedPromptsView: some View {
