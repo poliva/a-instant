@@ -23,14 +23,14 @@ A-Instant eliminates the need to switch between apps, copy/paste, and wait for r
 ### Standard Mode
 In this mode, the selected text is directly replaced by the AI's response. This is useful for quick edits and transformations.
 
-![Translation Example](img/translate.gif)
+![Translation Example](docs/img/translate.gif)
 
 You can use prompts such as: "Translate this text into French," "Add humor and sarcasm to this comment", "Add relevant hashtags and format for social media", "Correct the grammar and improve the flow of this sentence", "Optimize this code for performance," "Add detailed comments to this code block," or "Write a shell script that automates this process..."
 
 ### Non-Destructive Mode
 In this mode, the AI's response is displayed separately, leaving the original text untouched. This is ideal for summarizing or analyzing text without altering it.
 
-![Rubik's Cube Example](img/rubik.gif)
+![Rubik's Cube Example](docs/img/rubik.gif)
 
  Example prompts include: "Summarize this article in three sentences", "Create a polite and professional response to this email", "Explain what this code snippet does in simple terms", "Extract the key dates and locations from this text" or "List the main arguments presented in this document".
 
