@@ -126,13 +126,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let menu = NSMenu()
         
         menu.addItem(NSMenuItem(title: "Show Prompt Window", action: #selector(showPromptWindowFromMenu), keyEquivalent: "p"))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Check for Updates", action: #selector(checkForUpdatesFromMenu), keyEquivalent: "u"))
-        menu.addItem(NSMenuItem.separator())
+        
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Show Debug Logs", action: #selector(showDebugLogs), keyEquivalent: "d"))
         menu.addItem(NSMenuItem.separator())
+        
+        menu.addItem(NSMenuItem(title: "Check for Updates", action: #selector(checkForUpdatesFromMenu), keyEquivalent: "u"))
+        menu.addItem(NSMenuItem(title: "A-Instant GitHub", action: #selector(openGitHubRepository), keyEquivalent: "g"))
+        menu.addItem(NSMenuItem.separator())
+        
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         
         statusItem?.menu = menu
@@ -152,35 +154,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             // Get the frontmost application before showing our window
             let frontmostApp = NSWorkspace.shared.frontmostApplication
             
-            if #available(macOS 14.0, *) {
-                if promptWindowController == nil {
-                    promptWindowController = PromptWindowController()
-                    Logger.shared.log("Created new prompt window controller")
-                }
-                
-                if let controller = promptWindowController as? PromptWindowController {
-                    controller.showWindow(with: selectedText, frontmostApp: frontmostApp)
-                    Logger.shared.log("Displayed prompt window")
-                }
-            } else {
-                // Show a notification that macOS 14+ is required
-                Logger.shared.log("macOS 14+ required notification shown")
-                let content = UNMutableNotificationContent()
-                content.title = "A-Instant"
-                content.body = "macOS 14 or later is required to use this feature"
-                
-                let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-                UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+            if promptWindowController == nil {
+                promptWindowController = PromptWindowController()
+                Logger.shared.log("Created new prompt window controller")
+            }
+            
+            if let controller = promptWindowController as? PromptWindowController {
+                controller.showWindow(with: selectedText, frontmostApp: frontmostApp)
+                Logger.shared.log("Displayed prompt window")
             }
         } else {
-            // Show an error notification if no text is selected
+            // Show an alert if no text is selected
             Logger.shared.log("No text selected error")
-            let content = UNMutableNotificationContent()
-            content.title = "A-Instant"
-            content.body = "No text selected"
-            
-            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-            UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+            showNoTextSelectedAlert()
         }
     }
     
@@ -431,6 +417,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.runModal()
     }
     
+    private func showNoTextSelectedAlert() {
+        let alert = NSAlert()
+        alert.messageText = "No Text Selected"
+        alert.informativeText = "Please select some text before using A-Instant."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+    
     private func showUpdateErrorAlert(error: Error) {
         let alert = NSAlert()
         alert.messageText = "Update Check Failed"
@@ -467,6 +462,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Handle automatic updates setting change
         Logger.shared.log("Automatic updates setting changed")
         setupPeriodicUpdateChecks()
+    }
+    
+    @objc func openGitHubRepository() {
+        Logger.shared.log("Opening GitHub repository")
+        if let url = URL(string: "https://github.com/poliva/a-instant") {
+            NSWorkspace.shared.open(url)
+        }
     }
     
     // MARK: - NSWindowDelegate
