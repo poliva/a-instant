@@ -143,30 +143,43 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     
     @objc func showPromptWindowFromMenu() {
         Logger.shared.log("Show prompt window triggered from menu")
-        showPromptWindow()
+        
+        // Check if text is selected before showing the prompt window
+        if let selectedText = pasteboardManager.captureSelectedText() {
+            showPromptWindow(selectedText: selectedText)
+        } else {
+            // Only show the alert when triggered from menu
+            Logger.shared.log("No text selected error (menu trigger)")
+            showNoTextSelectedAlert()
+        }
     }
     
-    @objc func showPromptWindow() {
+    @objc func showPromptWindow(selectedText: String? = nil) {
         Logger.shared.log("Attempting to show prompt window")
-        // Capture selected text using the pasteboard manager
-        if let selectedText = pasteboardManager.captureSelectedText() {
-            Logger.shared.log("Selected text captured: \(selectedText.prefix(30))...")
-            // Get the frontmost application before showing our window
-            let frontmostApp = NSWorkspace.shared.frontmostApplication
-            
-            if promptWindowController == nil {
-                promptWindowController = PromptWindowController()
-                Logger.shared.log("Created new prompt window controller")
-            }
-            
-            if let controller = promptWindowController as? PromptWindowController {
-                controller.showWindow(with: selectedText, frontmostApp: frontmostApp)
-                Logger.shared.log("Displayed prompt window")
-            }
+        // Use provided text or try to capture selected text
+        let textToUse: String?
+        if let selectedText = selectedText {
+            textToUse = selectedText
+        } else if let capturedText = pasteboardManager.captureSelectedText() {
+            textToUse = capturedText
         } else {
-            // Show an alert if no text is selected
-            Logger.shared.log("No text selected error")
-            showNoTextSelectedAlert()
+            // No text selected and not showing alert here
+            // Logger.shared.log("No text selected (keyboard trigger)")
+            return
+        }
+        
+        Logger.shared.log("Selected text captured: \(textToUse!.prefix(30))...")
+        // Get the frontmost application before showing our window
+        let frontmostApp = NSWorkspace.shared.frontmostApplication
+        
+        if promptWindowController == nil {
+            promptWindowController = PromptWindowController()
+            Logger.shared.log("Created new prompt window controller")
+        }
+        
+        if let controller = promptWindowController as? PromptWindowController {
+            controller.showWindow(with: textToUse!, frontmostApp: frontmostApp)
+            Logger.shared.log("Displayed prompt window")
         }
     }
     
