@@ -5,7 +5,7 @@ A-Instant is an AI-powered text assistant that enhances productivity by enabling
 ## Key Features
 
 - **Universal**: Works in any application where you can highlight text
-- **Multiple AI Providers**: Supports OpenAI, Anthropic, Google, Groq, DeepSeek, Mistral, and local models via Ollama
+- **Multiple AI Providers**: Supports OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI, Groq, Custom OpenAI-compatible API providers and local models via Ollama
 - **Customizable Activation**: Choose your preferred trigger key (defaults to right shift)
 - **Prompt Library**: Save and reuse complex or frequently used prompts
 
@@ -38,7 +38,7 @@ In this mode, the AI's response is displayed separately, leaving the original te
 
 ### Requirements
 - macOS 14.0 or later
-- Access to an AI provider API (OpenAI, Anthropic, Google, Groq, DeepSeek, Mistral) or Ollama running locally
+- Access to an AI provider API or local Ollama
 
 ### Steps
 1. Download the latest release from the [Releases page](https://github.com/poliva/a-instant/releases)
