@@ -13,6 +13,7 @@ class PromptViewModel: ObservableObject {
     @Published var aiResponse: String = ""
     @Published var nonDestructiveMode: Bool = false
     @Published var showResponseView: Bool = false
+    @Published var textReplaceAttemptFailed: Bool = false
     
     // Provider and model selection
     @Published var selectedProvider: AIProvider
@@ -119,6 +120,7 @@ class PromptViewModel: ObservableObject {
         
         isProcessing = true
         error = nil
+        textReplaceAttemptFailed = false
         
         let apiKey = UserDefaults.standard.string(forKey: selectedProvider.apiKeyUserDefaultsKey) ?? ""
         
@@ -174,11 +176,31 @@ Selected text:
                     self.aiResponse = response
                     self.showResponseView = true
                 } else {
-                    self.replaceSelectedText(with: response)
+                    self.processAIResponse(response)
                 }
             }
         )
         .store(in: &cancellables)
+    }
+    
+    func processAIResponse(_ response: String) {
+        // Keep the original response
+        self.aiResponse = response
+        
+        // Try to replace text if not in non-destructive mode
+        if !nonDestructiveMode {
+            self.replaceSelectedText(with: response, completion: { success in
+                // If replacement failed, show the response view
+                if !success {
+                    DispatchQueue.main.async {
+                        self.showResponseView = true
+                        self.textReplaceAttemptFailed = true
+                    }
+                }
+            })
+        } else {
+            self.showResponseView = true
+        }
     }
     
     func savePrompt(name: String) {
@@ -197,29 +219,77 @@ Selected text:
         promptText = prompt.promptText
     }
     
-    func replaceSelectedText(with response: String) {
+    func replaceSelectedText(with response: String, completion: @escaping (Bool) -> Void = { _ in }) {
         // Copy the response to clipboard
         let pasteboard = NSPasteboard.general
+        let initialContents = pasteboard.string(forType: .string)
         pasteboard.clearContents()
         pasteboard.setString(response, forType: .string)
         
-        // Dismiss the window
-        if let window = NSApp.windows.first(where: { $0.isKeyWindow }) {
-            window.close()
-        }
+        // Save the window reference before closing
+        let window = NSApp.windows.first(where: { $0.isKeyWindow })
+        
+        // Store initial selected text
+        let initialSelectedText = self.selectedText
         
         // Reactivate the original application and simulate paste
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            if let originalApp = self?.originalApplication {
+            guard let self = self else { return }
+            
+            let activateAndPaste = {
+                // Attempt to paste the text
+                self.simulatePaste()
+                
+                // Check if paste worked by verifying text change
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    // Try to recapture selected text to see if it changed
+                    let pasteManager = PasteboardManager()
+                    let capturedTextAfterPaste = pasteManager.captureSelectedText()
+                    let selectedTextChanged = capturedTextAfterPaste != initialSelectedText
+                    
+                    // Log the detection results
+                    Logger.shared.log("Paste verification - Text changed: \(selectedTextChanged), Initial: \(initialSelectedText.prefix(20))..., After: \(capturedTextAfterPaste?.prefix(20) ?? "nil")...")
+                    
+                    // Only consider a failure when the selected text didn't change and there was non-empty text captured
+                    let pasteFailed = !selectedTextChanged && capturedTextAfterPaste?.isEmpty == false
+                    
+                    if !pasteFailed {
+                        // Consider paste successful
+                        window?.close()
+                        completion(true)
+                    } else {
+                        // Paste likely failed
+                        Logger.shared.log("Paste operation likely failed")
+                        // Restore original clipboard
+                        if let originalContent = initialContents {
+                            pasteboard.clearContents()
+                            pasteboard.setString(originalContent, forType: .string)
+                        }
+                        completion(false)
+                    }
+                    
+                    // In either case, restore clipboard after a delay to ensure paste completes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        if let originalContent = initialContents {
+                            pasteboard.clearContents()
+                            pasteboard.setString(originalContent, forType: .string)
+                            Logger.shared.log("Restored original clipboard contents")
+                        }
+                    }
+                }
+            }
+            
+            // Activate original app if available, otherwise just paste
+            if let originalApp = self.originalApplication {
                 originalApp.activate()
                 
                 // Wait for the app to be activated before simulating paste
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    self?.simulatePaste()
+                    activateAndPaste()
                 }
             } else {
                 // Fallback if no original app reference
-                self?.simulatePaste()
+                activateAndPaste()
             }
         }
     }
