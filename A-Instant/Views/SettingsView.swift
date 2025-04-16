@@ -145,10 +145,6 @@ struct SettingsView: View {
                 .onChange(of: viewModel.selectedProvider) { oldValue, newValue in
                     viewModel.refreshModelList()
                 }
-                
-                Text("Select your preferred AI provider")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
             
             VStack(alignment: .leading, spacing: 10) {
@@ -163,6 +159,7 @@ struct SettingsView: View {
                     }
                     
                     Button(action: {
+                        viewModel.saveSettings()
                         viewModel.refreshModelList()
                     }) {
                         Image(systemName: "arrow.clockwise")
@@ -199,8 +196,11 @@ struct SettingsView: View {
             Divider()
                 .padding(.vertical, 10)
             
-            if viewModel.selectedProvider != .ollama {
-                SecureField("API Key", text: apiKeyBinding())
+            if viewModel.selectedProvider != .ollama && viewModel.selectedProvider != .genericOpenAI {
+                Text("API Key")
+                    .font(.headline)
+
+                SecureField("Enter API Key", text: apiKeyBinding())
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding(.bottom, 10)
                 
@@ -223,33 +223,7 @@ struct SettingsView: View {
                 .buttonStyle(PlainButtonStyle())
                 .foregroundColor(.accentColor)
                 
-                Button("Test Connection") {
-                    viewModel.refreshModelList()
-                }
-                .padding(.top, 10)
-                .disabled(viewModel.currentAPIKey.isEmpty)
-                
-                if viewModel.isLoadingModels {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                        .padding(.top, 5)
-                } else if let error = viewModel.modelLoadError {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                        .padding(.top, 5)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else if !viewModel.displayModels.isEmpty {
-                    Text("Connection successful!")
-                        .foregroundColor(.green)
-                        .font(.caption)
-                        .padding(.top, 5)
-                }
-            } else {
+            } else if viewModel.selectedProvider == .ollama {
                 Text("Ollama Endpoint")
                     .font(.headline)
                 
@@ -275,32 +249,27 @@ struct SettingsView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .foregroundColor(.accentColor)
-                
-                Button("Test Connection") {
-                    viewModel.refreshModelList()
-                }
-                .padding(.top, 10)
-                .disabled(viewModel.ollamaEndpoint.isEmpty)
-                
-                if viewModel.isLoadingModels {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                        .padding(.top, 5)
-                } else if let error = viewModel.modelLoadError {
-                    Text(error)
-                        .foregroundColor(.red)
+            } else if viewModel.selectedProvider == .genericOpenAI {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("API Key")
+                        .font(.headline)
+                    
+                    SecureField("Enter API Key", text: $viewModel.genericOpenAIKey)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.bottom, 10)
+                    
+                    Text("API Endpoint")
+                        .font(.headline)
+                        .padding(.top, 10)
+                    
+                    TextField("API Endpoint URL", text: $viewModel.genericOpenAIEndpoint)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.bottom, 10)
+                    
+                    Text("The base URL of the OpenAI-compatible API")
                         .font(.caption)
-                        .padding(.top, 5)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else if !viewModel.displayModels.isEmpty {
-                    Text("Connection successful!")
-                        .foregroundColor(.green)
-                        .font(.caption)
-                        .padding(.top, 5)
+                        .foregroundColor(.secondary)
+                    
                 }
             }
             
@@ -550,6 +519,10 @@ struct SettingsView: View {
             return $viewModel.mistralKey
         case .ollama:
             return .constant("")
+        case .xAI:
+            return $viewModel.xAIKey
+        case .genericOpenAI:
+            return $viewModel.genericOpenAIKey
         }
     }
     
@@ -569,6 +542,10 @@ struct SettingsView: View {
             return URL(string: "https://console.mistral.ai/api-keys")
         case .ollama:
             return URL(string: "https://ollama.com/download")
+        case .xAI:
+            return URL(string: "https://platform.x.ai/settings/api-keys")
+        case .genericOpenAI:
+            return URL(string: "https://openrouter.ai/keys")
         }
     }
 } 

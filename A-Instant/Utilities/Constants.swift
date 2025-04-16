@@ -20,6 +20,11 @@ struct UserDefaultsKeys {
     static let autoLaunchOnStartup = "autoLaunchOnStartup"
     static let mistralKey = "mistralKey"
     static let mistralModel = "mistralModel"
+    static let xAIKey = "xAIKey"
+    static let xAIModel = "xAIModel"
+    static let genericOpenAIKey = "genericOpenAIKey"
+    static let genericOpenAIModel = "genericOpenAIModel"
+    static let genericOpenAIEndpoint = "genericOpenAIEndpoint"
     static let enableAutomaticUpdates = "enableAutomaticUpdates"
     static let enableDebugLogging = "enableDebugLogging"
     static let nonDestructiveMode = "nonDestructiveMode"
@@ -32,6 +37,8 @@ struct UserDefaultsKeys {
     static let cachedDeepSeekModels = "cachedDeepSeekModels"
     static let cachedMistralModels = "cachedMistralModels"
     static let cachedOllamaModels = "cachedOllamaModels"
+    static let cachedXAIModels = "cachedXAIModels"
+    static let cachedGenericOpenAIModels = "cachedGenericOpenAIModels"
 }
 
 enum AIProvider: String, CaseIterable, Identifiable {
@@ -42,6 +49,8 @@ enum AIProvider: String, CaseIterable, Identifiable {
     case deepSeek = "DeepSeek"
     case mistral = "Mistral"
     case ollama = "Ollama"
+    case xAI = "xAI"
+    case genericOpenAI = "Custom"
     
     var id: String { self.rawValue }
     
@@ -54,6 +63,8 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .deepSeek: return UserDefaultsKeys.deepSeekKey
         case .mistral: return UserDefaultsKeys.mistralKey
         case .ollama: return UserDefaultsKeys.ollamaEndpoint
+        case .xAI: return UserDefaultsKeys.xAIKey
+        case .genericOpenAI: return UserDefaultsKeys.genericOpenAIKey
         }
     }
     
@@ -66,6 +77,8 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .deepSeek: return UserDefaultsKeys.deepSeekModel
         case .mistral: return UserDefaultsKeys.mistralModel
         case .ollama: return UserDefaultsKeys.ollamaModel
+        case .xAI: return UserDefaultsKeys.xAIModel
+        case .genericOpenAI: return UserDefaultsKeys.genericOpenAIModel
         }
     }
     
@@ -78,6 +91,8 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .deepSeek: return UserDefaultsKeys.cachedDeepSeekModels
         case .mistral: return UserDefaultsKeys.cachedMistralModels
         case .ollama: return UserDefaultsKeys.cachedOllamaModels
+        case .xAI: return UserDefaultsKeys.cachedXAIModels
+        case .genericOpenAI: return UserDefaultsKeys.cachedGenericOpenAIModels
         }
     }
 }

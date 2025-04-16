@@ -157,6 +157,11 @@ class AIService {
         case .ollama:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
             return sendOllamaPrompt(text: text, model: model, endpoint: endpoint)
+        case .xAI:
+            return sendXAIPrompt(text: text, model: model, apiKey: apiKey)
+        case .genericOpenAI:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIEndpoint) ?? "https://openrouter.ai/api/v1"
+            return sendGenericOpenAIPrompt(text: text, model: model, apiKey: apiKey, endpoint: endpoint)
         }
     }
     
@@ -183,6 +188,11 @@ class AIService {
         case .ollama:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
             return sendOllamaPrompt(text: text, systemPrompt: systemPrompt, model: model, endpoint: endpoint)
+        case .xAI:
+            return sendXAIPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey)
+        case .genericOpenAI:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIEndpoint) ?? "https://openrouter.ai/api/v1"
+            return sendGenericOpenAIPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey, endpoint: endpoint)
         }
     }
     
@@ -207,6 +217,11 @@ class AIService {
         case .ollama:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
             return fetchOllamaModels(endpoint: endpoint)
+        case .xAI:
+            return fetchXAIModels(apiKey: apiKey)
+        case .genericOpenAI:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIEndpoint) ?? "https://openrouter.ai/api/v1"
+            return fetchGenericOpenAIModels(apiKey: apiKey, endpoint: endpoint)
         }
     }
     
@@ -1154,6 +1169,283 @@ class AIService {
                 // Filter for chat models and sort
                 return response.data
                     .filter { $0.capabilities.completion_chat }
+                    .map { $0.id }
+                    .sorted()
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    // MARK: - xAI
+    
+    private func sendXAIPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        apiKey: String
+    ) -> AnyPublisher<String, AIServiceError> {
+        guard !apiKey.isEmpty else {
+            return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "https://api.x.ai/v1/chat/completions") else {
+            return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        
+        var messages: [[String: Any]] = []
+        
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        
+        messages.append(["role": "user", "content": text])
+        
+        let requestBody: [String: Any] = [
+            "model": model,
+            "messages": messages,
+            "temperature": 0.7
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "xAI", endpoint: "chat/completions")
+        } catch {
+            logError(error, provider: "xAI", endpoint: "chat/completions")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "xAI", endpoint: "chat/completions")
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw AIServiceError.invalidResponse
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
+                    }
+                }
+                
+                return data
+            }
+            .decode(type: OpenAIResponse.self, decoder: JSONDecoder())
+            .map { response in
+                guard let choice = response.choices.first else {
+                    return "No response generated"
+                }
+                return choice.message.content
+            }
+            .mapError { error in
+                self.logError(error, provider: "xAI", endpoint: "chat/completions")
+                if let aiError = error as? AIServiceError {
+                    return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    private func fetchXAIModels(apiKey: String) -> AnyPublisher<[String], AIServiceError> {
+        guard !apiKey.isEmpty else {
+            return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "https://api.x.ai/v1/models") else {
+            return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        
+        // Log the request
+        logRequest(request, provider: "xAI", endpoint: "models")
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .mapError { AIServiceError.networkError($0) }
+            .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "xAI", endpoint: "models")
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw AIServiceError.unknownError
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
+                        throw AIServiceError.apiError(errorMessage)
+                    }
+                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
+                }
+                
+                return data
+            }
+            .decode(type: OpenAIModelsResponse.self, decoder: JSONDecoder())
+            .mapError { error in
+                self.logError(error, provider: "xAI", endpoint: "models")
+                if let aiError = error as? AIServiceError {
+                    return aiError
+                }
+                return AIServiceError.decodingError(error)
+            }
+            .map { response in
+                // Return all models
+                return response.data
+                    .map { $0.id }
+                    .sorted()
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Generic OpenAI Compatible API
+    
+    private func sendGenericOpenAIPrompt(
+        text: String,
+        systemPrompt: String? = nil,
+        model: String,
+        apiKey: String,
+        endpoint: String
+    ) -> AnyPublisher<String, AIServiceError> {
+        guard !apiKey.isEmpty else {
+            return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
+        }
+        
+        // Construct the full URL for chat completions
+        let chatEndpoint = endpoint.hasSuffix("/") ? "\(endpoint)chat/completions" : "\(endpoint)/chat/completions"
+        
+        guard let url = URL(string: chatEndpoint) else {
+            return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        
+        var messages: [[String: Any]] = []
+        
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        
+        messages.append(["role": "user", "content": text])
+        
+        let requestBody: [String: Any] = [
+            "model": model,
+            "messages": messages,
+            "temperature": 0.7
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Log the request
+            logRequest(request, provider: "Generic OpenAI API", endpoint: "chat/completions")
+        } catch {
+            logError(error, provider: "Generic OpenAI API", endpoint: "chat/completions")
+            return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Generic OpenAI API", endpoint: "chat/completions")
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw AIServiceError.invalidResponse
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                    } else {
+                        throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
+                    }
+                }
+                
+                return data
+            }
+            .decode(type: OpenAIResponse.self, decoder: JSONDecoder())
+            .map { response in
+                guard let choice = response.choices.first else {
+                    return "No response generated"
+                }
+                return choice.message.content
+            }
+            .mapError { error in
+                self.logError(error, provider: "Generic OpenAI API", endpoint: "chat/completions")
+                if let aiError = error as? AIServiceError {
+                    return aiError
+                } else if let decodingError = error as? DecodingError {
+                    return AIServiceError.decodingError(decodingError)
+                } else {
+                    return AIServiceError.unknown(error)
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    private func fetchGenericOpenAIModels(apiKey: String, endpoint: String) -> AnyPublisher<[String], AIServiceError> {
+        guard !apiKey.isEmpty else {
+            return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
+        }
+        
+        // Construct the full URL for models
+        let modelsEndpoint = endpoint.hasSuffix("/") ? "\(endpoint)models" : "\(endpoint)/models"
+        
+        guard let url = URL(string: modelsEndpoint) else {
+            return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        
+        // Log the request
+        logRequest(request, provider: "Generic OpenAI API", endpoint: "models")
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .mapError { AIServiceError.networkError($0) }
+            .tryMap { data, response in
+                // Log the response
+                self.logResponse(data: data, response: response, provider: "Generic OpenAI API", endpoint: "models")
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw AIServiceError.unknownError
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
+                        throw AIServiceError.apiError(errorMessage)
+                    }
+                    throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
+                }
+                
+                return data
+            }
+            .decode(type: OpenAIModelsResponse.self, decoder: JSONDecoder())
+            .mapError { error in
+                self.logError(error, provider: "Generic OpenAI API", endpoint: "models")
+                if let aiError = error as? AIServiceError {
+                    return aiError
+                }
+                return AIServiceError.decodingError(error)
+            }
+            .map { response in
+                // Return all models
+                return response.data
                     .map { $0.id }
                     .sorted()
             }

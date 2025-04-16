@@ -165,8 +165,7 @@ Selected text:
                 self?.isProcessing = false
                 
                 if case .failure(let error) = completion {
-                    // Extract a user-friendly error message
-                    self?.error = (error as? AIServiceError)?.userFriendlyMessage ?? error.localizedDescription
+                    self?.error = error.userFriendlyMessage
                 }
             },
             receiveValue: { [weak self] response in

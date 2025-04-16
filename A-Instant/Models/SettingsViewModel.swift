@@ -12,6 +12,9 @@ class SettingsViewModel: ObservableObject {
     @Published var deepSeekKey: String = ""
     @Published var mistralKey: String = ""
     @Published var ollamaEndpoint: String = "http://localhost:11434"
+    @Published var xAIKey: String = ""
+    @Published var genericOpenAIKey: String = ""
+    @Published var genericOpenAIEndpoint: String = "https://openrouter.ai/api/v1"
     @Published var autoLaunchOnStartup: Bool = true
     @Published var enableAutomaticUpdates: Bool = true
     @Published var enableDebugLogging: Bool = false
@@ -24,6 +27,8 @@ class SettingsViewModel: ObservableObject {
     @Published var deepSeekModel: String = ""
     @Published var mistralModel: String = ""
     @Published var ollamaModel: String = ""
+    @Published var xAIModel: String = ""
+    @Published var genericOpenAIModel: String = ""
     
     @Published var availableModels: [String] = []
     @Published var isLoadingModels: Bool = false
@@ -87,6 +92,9 @@ class SettingsViewModel: ObservableObject {
         deepSeekKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.deepSeekKey) ?? ""
         mistralKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.mistralKey) ?? ""
         ollamaEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaEndpoint) ?? "http://localhost:11434"
+        xAIKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.xAIKey) ?? ""
+        genericOpenAIKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIKey) ?? ""
+        genericOpenAIEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIEndpoint) ?? "https://openrouter.ai/api/v1"
         
         // Load model selections
         openAIModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.openAIModel) ?? ""
@@ -96,6 +104,8 @@ class SettingsViewModel: ObservableObject {
         deepSeekModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.deepSeekModel) ?? ""
         mistralModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.mistralModel) ?? ""
         ollamaModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaModel) ?? ""
+        xAIModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.xAIModel) ?? ""
+        genericOpenAIModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIModel) ?? ""
         
         // Load saved prompts
         if let data = UserDefaults.standard.data(forKey: UserDefaultsKeys.savedPrompts) {
@@ -146,6 +156,9 @@ class SettingsViewModel: ObservableObject {
         UserDefaults.standard.set(deepSeekKey, forKey: UserDefaultsKeys.deepSeekKey)
         UserDefaults.standard.set(mistralKey, forKey: UserDefaultsKeys.mistralKey)
         UserDefaults.standard.set(ollamaEndpoint, forKey: UserDefaultsKeys.ollamaEndpoint)
+        UserDefaults.standard.set(xAIKey, forKey: UserDefaultsKeys.xAIKey)
+        UserDefaults.standard.set(genericOpenAIKey, forKey: UserDefaultsKeys.genericOpenAIKey)
+        UserDefaults.standard.set(genericOpenAIEndpoint, forKey: UserDefaultsKeys.genericOpenAIEndpoint)
         
         // Save model selections
         UserDefaults.standard.set(openAIModel, forKey: UserDefaultsKeys.openAIModel)
@@ -155,6 +168,8 @@ class SettingsViewModel: ObservableObject {
         UserDefaults.standard.set(deepSeekModel, forKey: UserDefaultsKeys.deepSeekModel)
         UserDefaults.standard.set(mistralModel, forKey: UserDefaultsKeys.mistralModel)
         UserDefaults.standard.set(ollamaModel, forKey: UserDefaultsKeys.ollamaModel)
+        UserDefaults.standard.set(xAIModel, forKey: UserDefaultsKeys.xAIModel)
+        UserDefaults.standard.set(genericOpenAIModel, forKey: UserDefaultsKeys.genericOpenAIModel)
         
         // Save prompts
         do {
@@ -231,6 +246,20 @@ class SettingsViewModel: ObservableObject {
             }
         case .ollama:
             apiKey = "" // Ollama doesn't use API keys
+        case .xAI:
+            apiKey = xAIKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your xAI API key in the API tab"
+                isLoadingModels = false
+                return
+            }
+        case .genericOpenAI:
+            apiKey = genericOpenAIKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your Generic OpenAI API key in the API tab"
+                isLoadingModels = false
+                return
+            }
         }
         
         aiService.fetchModels(provider: selectedProvider, apiKey: apiKey)
@@ -241,7 +270,7 @@ class SettingsViewModel: ObservableObject {
                     
                     if case .failure(let error) = completion {
                         // Extract a user-friendly error message
-                        self?.modelLoadError = (error as? AIServiceError)?.userFriendlyMessage ?? error.localizedDescription
+                        self?.modelLoadError = error.userFriendlyMessage
                         self?.availableModels = []
                     }
                 },
@@ -296,18 +325,31 @@ class SettingsViewModel: ObservableObject {
         case .deepSeek: return deepSeekKey
         case .mistral: return mistralKey
         case .ollama: return "" // Ollama doesn't use API keys
+        case .xAI: return xAIKey
+        case .genericOpenAI: return genericOpenAIKey
         }
     }
     
     var currentModel: String {
         switch selectedProvider {
-        case .openAI: return openAIModel
-        case .anthropic: return anthropicModel
-        case .google: return googleModel
-        case .groq: return groqModel
-        case .deepSeek: return deepSeekModel
-        case .mistral: return mistralModel
-        case .ollama: return ollamaModel
+        case .openAI:
+            return openAIModel
+        case .anthropic:
+            return anthropicModel
+        case .google:
+            return googleModel
+        case .groq:
+            return groqModel
+        case .deepSeek:
+            return deepSeekModel
+        case .mistral:
+            return mistralModel
+        case .ollama:
+            return ollamaModel
+        case .xAI:
+            return xAIModel
+        case .genericOpenAI:
+            return genericOpenAIModel
         }
     }
     
@@ -350,6 +392,12 @@ class SettingsViewModel: ObservableObject {
         case .ollama:
             ollamaModel = model
             UserDefaults.standard.set(model, forKey: UserDefaultsKeys.ollamaModel)
+        case .xAI:
+            xAIModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.xAIModel)
+        case .genericOpenAI:
+            genericOpenAIModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.genericOpenAIModel)
         }
     }
     
