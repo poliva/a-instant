@@ -6,8 +6,6 @@ enum TriggerKey: String, CaseIterable, Identifiable {
     case leftShift = "Left Shift"
     case rightCommand = "Right Command"
     case leftCommand = "Left Command"
-    case rightOption = "Right Option"
-    case leftOption = "Left Option"
     case rightControl = "Right Control"
     case leftControl = "Left Control"
     case capsLock = "Caps Lock"
@@ -25,10 +23,8 @@ enum TriggerKey: String, CaseIterable, Identifiable {
         switch self {
         case .rightShift: return 0x3C
         case .leftShift: return 0x38
-        case .rightCommand: return 0x3E
+        case .rightCommand: return 0x36
         case .leftCommand: return 0x37
-        case .rightOption: return 0x3D
-        case .leftOption: return 0x3A
         case .rightControl: return 0x3E
         case .leftControl: return 0x3B
         case .capsLock: return 0x39
@@ -48,8 +44,6 @@ enum TriggerKey: String, CaseIterable, Identifiable {
             return .shift
         case .rightCommand, .leftCommand:
             return .command
-        case .rightOption, .leftOption:
-            return .option
         case .rightControl, .leftControl:
             return .control
         case .commandShiftP:
@@ -223,7 +217,7 @@ class KeyboardMonitor {
     private func isModifierKey(_ key: TriggerKey) -> Bool {
         switch key {
         case .rightShift, .leftShift, .rightCommand, .leftCommand,
-             .rightOption, .leftOption, .rightControl, .leftControl,
+             .rightControl, .leftControl,
              .capsLock:
             return true
         default:
