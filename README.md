@@ -18,6 +18,18 @@ A-Instant is an AI-powered text assistant that enhances productivity by enabling
 
 A-Instant eliminates the need to switch between apps, copy/paste, and wait for results. Simply highlight, double-tap, and you're done!
 
+## Examples
+
+### Standard Mode
+In this mode, the selected text is replaced with the AI response.
+
+![Translation Example](img/translate.gif)
+
+### Non-Destructive Mode
+In this mode, the AI response is displayed in a separate area without modifying the original text.
+
+![Rubik's Cube Example](img/rubik.gif)
+
 ## Installation
 
 ### Requirements
