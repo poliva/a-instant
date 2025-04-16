@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A-Instant | AI-powered text assistant for Mac</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-dark: #4338CA;
+            --secondary: #10B981;
+            --dark: #1F2937;
+            --light: #F9FAFB;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #374151;
+            background-color: var(--light);
+        }
+        .hero {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 5rem 0;
+            border-radius: 0 0 2rem 2rem;
+        }
+        .hero h1 {
+            font-weight: 800;
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+        .btn-hero {
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            background-color: var(--secondary);
+            border: none;
+            color: white;
+            transition: all 0.3s;
+        }
+        .btn-hero:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            background-color: #0EA271;
+        }
+        .feature-section {
+            padding: 5rem 0;
+        }
+        .feature-card {
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            background: white;
+            height: 100%;
+            transition: all 0.3s;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        .feature-icon {
+            width: 3rem;
+            height: 3rem;
+            background-color: rgba(79, 70, 229, 0.1);
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+        }
+        .demo-section {
+            padding: 5rem 0;
+            background-color: #F3F4F6;
+            border-radius: 2rem;
+            margin-top: 3rem;
+        }
+        .demo-img {
+            border-radius: 1rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+            height: auto;
+        }
+        .section-title {
+            font-weight: 800;
+            margin-bottom: 3rem;
+            color: var(--dark);
+        }
+        .footer {
+            background-color: var(--dark);
+            color: white;
+            padding: 3rem 0;
+            margin-top: 5rem;
+        }
+        .installation-steps {
+            counter-reset: step;
+            padding-left: 0;
+        }
+        .installation-steps li {
+            position: relative;
+            padding: 1rem 1.5rem 1rem 3rem;
+            margin-bottom: 1rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            list-style-type: none;
+        }
+        .installation-steps li::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: -1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2rem;
+            height: 2rem;
+            background-color: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero">
+        <div class="container text-center">
+            <h1>A-Instant</h1>
+            <p>An AI-powered text assistant that enhances productivity by enabling quick in-context interactions with AI models directly from any application on your Mac.</p>
+            <a href="https://github.com/poliva/a-instant/releases" class="btn btn-hero">
+                <i class="fas fa-download me-2"></i> Download Now
+            </a>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <section class="feature-section">
+        <div class="container">
+            <h2 class="text-center section-title">Key Features</h2>
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-globe"></i>
+                        </div>
+                        <h3>Universal</h3>
+                        <p>Works in any application where you can highlight text, eliminating the need to switch between apps.</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3>Multiple AI Providers</h3>
+                        <p>Supports OpenAI, Anthropic, Google, Groq, DeepSeek, Mistral, and local models via Ollama.</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-keyboard"></i>
+                        </div>
+                        <h3>Customizable Activation</h3>
+                        <p>Choose your preferred trigger key (defaults to right shift) for instant AI access.</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-bookmark"></i>
+                        </div>
+                        <h3>Prompt Library</h3>
+                        <p>Save and reuse complex or frequently used prompts to streamline your workflow.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="container">
+        <h2 class="text-center section-title">How It Works</h2>
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <ol class="installation-steps">
+                    <li>Select text in any application</li>
+                    <li>Double-tap your A-Instant trigger key</li>
+                    <li>Enter a prompt for the AI model</li>
+                    <li>Get instant AI response, either replacing the selected text or displaying in a separate area</li>
+                </ol>
+            </div>
+            <div class="col-lg-6 text-center">
+                <div class="card p-4 shadow">
+                    <h4 class="mb-3">A-Instant eliminates:</h4>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">App switching</li>
+                        <li class="list-group-item">Copy/pasting</li>
+                        <li class="list-group-item">Waiting for results</li>
+                    </ul>
+                    <div class="mt-3">
+                        <strong>Simply highlight, double-tap, and you're done!</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section class="demo-section">
+        <div class="container">
+            <h2 class="text-center section-title">See A-Instant in Action</h2>
+            
+            <div class="row align-items-center mb-5">
+                <div class="col-lg-6">
+                    <h3>Standard Mode</h3>
+                    <p>In this mode, the selected text is directly replaced by the AI's response. This is useful for quick edits and transformations.</p>
+                    <p>Example prompts:</p>
+                    <ul>
+                        <li>"Translate this text into French"</li>
+                        <li>"Add humor and sarcasm to this comment"</li>
+                        <li>"Optimize this code for performance"</li>
+                        <li>"Correct the grammar and improve the flow"</li>
+                    </ul>
+                </div>
+                <div class="col-lg-6 text-center">
+                    <img src="../img/translate.gif" alt="Translation Example" class="demo-img">
+                </div>
+            </div>
+            
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-2">
+                    <h3>Non-Destructive Mode</h3>
+                    <p>In this mode, the AI's response is displayed separately, leaving the original text untouched. This is ideal for summarizing or analyzing text without altering it.</p>
+                    <p>Example prompts:</p>
+                    <ul>
+                        <li>"Summarize this article in three sentences"</li>
+                        <li>"Create a polite response to this email"</li>
+                        <li>"Explain what this code snippet does"</li>
+                        <li>"Extract key dates and locations from this text"</li>
+                    </ul>
+                </div>
+                <div class="col-lg-6 text-center order-lg-1">
+                    <img src="../img/rubik.gif" alt="Rubik's Cube Example" class="demo-img">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section class="container mt-5">
+        <h2 class="text-center section-title">Installation</h2>
+        
+        <div class="row">
+            <div class="col-lg-6">
+                <h3>Requirements</h3>
+                <ul class="list-group mb-4">
+                    <li class="list-group-item">macOS 14.0 or later</li>
+                    <li class="list-group-item">Access to an AI provider API (OpenAI, Anthropic, Google, Groq, DeepSeek, Mistral) or Ollama running locally</li>
+                </ul>
+            </div>
+            
+            <div class="col-lg-6">
+                <h3>Steps</h3>
+                <ol class="installation-steps">
+                    <li>Download the latest release from the <a href="https://github.com/poliva/a-instant/releases">Releases page</a></li>
+                    <li>Unzip the file</li>
+                    <li>Move the app to your Applications folder</li>
+                    <li>When prompted, grant accessibility permissions in System Settings > Privacy & Security > Accessibility</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="text-center mt-5">
+            <a href="https://github.com/poliva/a-instant/releases" class="btn btn-hero">
+                <i class="fas fa-download me-2"></i> Download A-Instant
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p>A-Instant is Open Source and free to use under the MIT License</p>
+            <p>Created with ♥ in Barcelona by Pau Oliva Fora</p>
+            <a href="https://github.com/poliva/a-instant" class="btn btn-outline-light">
+                <i class="fab fa-github me-2"></i> View on GitHub
+            </a>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

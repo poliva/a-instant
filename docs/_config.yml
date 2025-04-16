@@ -1,0 +1,14 @@
+title: A-Instant
+description: AI-powered text assistant for Mac. Interact with AI models directly from any application.
+theme: jekyll-theme-cayman
+show_downloads: true
+google_analytics: 
+github:
+  is_project_page: true
+  repository_url: https://github.com/poliva/a-instant
+  repository_name: A-Instant
+  owner_name: poliva
+  zip_url: https://github.com/poliva/a-instant/releases
+  tar_url: https://github.com/poliva/a-instant/releases
+plugins:
+  - jekyll-seo-tag 
