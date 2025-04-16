@@ -61,5 +61,5 @@ In this mode, the AI's response is displayed separately, leaving the original te
 5. In non-destructive mode: The AI response will be displayed below your prompt, with options to copy or clear
 
 ## License
-
-MIT
+A-Instant is Open Source and free to use under the MIT License.  
+*Created with ♥ in Barcelona by Pau Oliva Fora*
