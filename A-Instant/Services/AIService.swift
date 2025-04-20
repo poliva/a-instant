@@ -133,6 +133,19 @@ class AIService {
         Logger.shared.log("API Error from \(provider) - \(endpoint): \(error.localizedDescription)")
     }
     
+    // MARK: - Private helper for processing AI responses
+    
+    private func processAIResponse(_ rawResponse: String) -> String {
+        // Use NSRegularExpression to find and remove <think>...</think> blocks
+        // Handle tags spanning multiple lines
+        let thinkTagRegex = try! NSRegularExpression(pattern: "<think>.*?</think>", options: [.dotMatchesLineSeparators])
+        let nsRange = NSRange(rawResponse.startIndex..<rawResponse.endIndex, in: rawResponse)
+        let processedResponse = thinkTagRegex.stringByReplacingMatches(in: rawResponse, options: [], range: nsRange, withTemplate: "")
+
+        // Trim leading/trailing whitespace and newlines
+        return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
     // MARK: - Public Methods
     
     func sendPrompt(
@@ -293,7 +306,7 @@ class AIService {
                 guard let choice = response.choices.first else {
                     return "No response generated"
                 }
-                return choice.message.content
+                return self.processAIResponse(choice.message.content)
             }
             .mapError { error in
                 self.logError(error, provider: "OpenAI", endpoint: "chat/completions")
@@ -433,7 +446,7 @@ class AIService {
                 guard let firstTextBlock = textBlocks.first else {
                     return "No response generated"
                 }
-                return firstTextBlock.text
+                return self.processAIResponse(firstTextBlock.text)
             }
             .mapError { error in
                 self.logError(error, provider: "Anthropic", endpoint: "messages")
@@ -583,7 +596,7 @@ class AIService {
                       let part = candidate.content.parts.first else {
                     return "No response generated"
                 }
-                return part.text
+                return self.processAIResponse(part.text)
             }
             .mapError { error in
                 self.logError(error, provider: "Google AI", endpoint: "generateContent")
@@ -717,7 +730,7 @@ class AIService {
                 guard let choice = response.choices.first else {
                     return "No response generated"
                 }
-                return choice.message.content
+                return self.processAIResponse(choice.message.content)
             }
             .mapError { error in
                 self.logError(error, provider: "Groq", endpoint: "chat/completions")
@@ -856,7 +869,7 @@ class AIService {
                 guard let choice = response.choices.first else {
                     return "No response generated"
                 }
-                return choice.message.content
+                return self.processAIResponse(choice.message.content)
             }
             .mapError { error in
                 self.logError(error, provider: "DeepSeek", endpoint: "chat/completions")
@@ -980,7 +993,7 @@ class AIService {
             }
             .decode(type: OllamaChatResponse.self, decoder: JSONDecoder())
             .map { response in
-                return response.message.content
+                return self.processAIResponse(response.message.content)
             }
             .mapError { error in
                 self.logError(error, provider: "Ollama", endpoint: "chat")
@@ -1107,7 +1120,7 @@ class AIService {
                 guard let choice = response.choices.first else {
                     return "No response generated"
                 }
-                return choice.message.content
+                return self.processAIResponse(choice.message.content)
             }
             .mapError { error in
                 self.logError(error, provider: "Mistral", endpoint: "chat/completions")
@@ -1243,7 +1256,7 @@ class AIService {
                 guard let choice = response.choices.first else {
                     return "No response generated"
                 }
-                return choice.message.content
+                return self.processAIResponse(choice.message.content)
             }
             .mapError { error in
                 self.logError(error, provider: "xAI", endpoint: "chat/completions")
@@ -1382,7 +1395,7 @@ class AIService {
                 guard let choice = response.choices.first else {
                     return "No response generated"
                 }
-                return choice.message.content
+                return self.processAIResponse(choice.message.content)
             }
             .mapError { error in
                 self.logError(error, provider: "Generic OpenAI API", endpoint: "chat/completions")
