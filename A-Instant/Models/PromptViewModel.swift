@@ -129,7 +129,7 @@ class PromptViewModel: ObservableObject {
             ? """
             You are a highly context-aware assistant.
             Analyze the selected text to understand its meaning and context.
-            Provide a helpful, thoughtful response to the user's instruction.
+            Provide a helpful, thoughtful response to the user's instruction with no explanations, no introductions, no lead-ins, no conversation, no placeholders, no surrounding quotes, and no quotation marks.
             Be specific and reference the content directly when relevant.
             Return your output in plain text, without code formatting or markdown symbols, unless explicitly requested by the user.
             """
