@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AppKit
 
 @available(macOS 14.0, *)
 struct PromptView: View {
@@ -14,35 +15,29 @@ struct PromptView: View {
                 // Prompt input with dark minimalist design
                 ZStack(alignment: .topTrailing) {
                     // Text editor with placeholder
-                    TextEditor(text: $viewModel.promptText)
-                        .font(.body)
-                        .scrollContentBackground(.hidden)
-                        .background(Color.black)
-                        .foregroundColor(.white)
-                        .padding(12)
-                        .padding(.trailing, 30) // Add padding to avoid overlapping with buttons
-                        .frame(height: viewModel.showResponseView ? min(geometry.size.height * 0.25, 100) : nil)
-                        .overlay(
-                            ZStack(alignment: .topLeading) {
-                                if viewModel.promptText.isEmpty {
-                                    Text("What would you like to do...")
-                                        .foregroundColor(.gray)
-                                        .padding(.horizontal, 16)
-                                        .padding(.top, 14)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                }
-                            }
-                        )
-                        .onKeyPress(keys: [.return]) { _ in
-                            if NSEvent.modifierFlags.contains(.shift) {
-                                viewModel.promptText += "\n"
-                                return .handled
-                            } else if !viewModel.promptText.isEmpty && !viewModel.isProcessing {
-                                viewModel.sendPrompt()
-                                return .handled
-                            }
-                            return .ignored
+                    CustomTextEditor(text: $viewModel.promptText, isProcessing: viewModel.isProcessing, onEnterKey: {
+                        if !viewModel.promptText.isEmpty && !viewModel.isProcessing {
+                            viewModel.sendPrompt()
                         }
+                    })
+                    .font(.body)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.black)
+                    .foregroundColor(.white)
+                    .padding(12)
+                    .padding(.trailing, 30) // Add padding to avoid overlapping with buttons
+                    .frame(height: viewModel.showResponseView ? min(geometry.size.height * 0.25, 100) : nil)
+                    .overlay(
+                        ZStack(alignment: .topLeading) {
+                            if viewModel.promptText.isEmpty {
+                                Text("What would you like to do...")
+                                    .foregroundColor(.gray)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 14)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            }
+                        }
+                    )
                     
                     // Header buttons in top right
                     VStack(spacing: 15) {

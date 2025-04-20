@@ -21,6 +21,7 @@
         1A2B3C4D5E6F7890ABCDEF17 /* PromptWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCDEF18 /* PromptWindowController.swift */; };
         1A2B3C4D5E6F7890ABCDEF1Z /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCDEF2Z /* Logger.swift */; };
         1A2B3C4D5E6F7890ABCDEF3Z /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCDEF4Z /* UpdateChecker.swift */; };
+        1A2B3C4D5E6F7890ABCDEF5Z /* CustomTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCDEF6Z /* CustomTextEditor.swift */; };
         ASSETCATALOG_BUILDFILE_ID /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ASSETCATALOG_FILEREF_ID /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -42,6 +43,7 @@
         1A2B3C4D5E6F7890ABCDEF1X /* A-Instant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "A-Instant.entitlements"; sourceTree = "<group>"; };
         1A2B3C4D5E6F7890ABCDEF2Z /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
         1A2B3C4D5E6F7890ABCDEF4Z /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
+        1A2B3C4D5E6F7890ABCDEF6Z /* CustomTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTextEditor.swift; sourceTree = "<group>"; };
         ASSETCATALOG_FILEREF_ID /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -87,6 +89,7 @@
                 1A2B3C4D5E6F7890ABCDEF04 /* ContentView.swift */,
                 1A2B3C4D5E6F7890ABCDEF06 /* PromptView.swift */,
                 1A2B3C4D5E6F7890ABCDEF08 /* SettingsView.swift */,
+                1A2B3C4D5E6F7890ABCDEF6Z /* CustomTextEditor.swift */,
             );
             path = Views;
             sourceTree = "<group>";
@@ -225,6 +228,7 @@
                 1A2B3C4D5E6F7890ABCDEF17 /* PromptWindowController.swift in Sources */,
                 1A2B3C4D5E6F7890ABCDEF1Z /* Logger.swift in Sources */,
                 1A2B3C4D5E6F7890ABCDEF3Z /* UpdateChecker.swift in Sources */,
+                1A2B3C4D5E6F7890ABCDEF5Z /* CustomTextEditor.swift in Sources */,
             );
             runOnlyForDeploymentPostprocessing = 0;
         };
