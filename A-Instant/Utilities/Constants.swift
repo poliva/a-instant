@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct UserDefaultsKeys {
     static let triggerKey = "triggerKey"
@@ -97,10 +98,14 @@ enum AIProvider: String, CaseIterable, Identifiable {
     }
 }
 
-struct SavedPrompt: Identifiable, Codable {
+struct SavedPrompt: Identifiable, Codable, Transferable {
     var id = UUID()
     var name: String
     var promptText: String
+    
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .json)
+    }
 }
 
 struct Shortcut: Identifiable, Codable {

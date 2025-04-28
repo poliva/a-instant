@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject var viewModel: SettingsViewModel
@@ -11,6 +12,36 @@ struct SettingsView: View {
     @State private var showingDeleteConfirmation = false
     @State private var newPromptName = ""
     @State private var newPromptText = ""
+    @State private var showingExporter = false
+    @State private var showingImporter = false
+    @State private var importErrorMessage = ""
+    @State private var showingImportError = false
+    
+    // Create document directly here since it couldn't be found in scope
+    class SavedPromptsDocument: FileDocument {
+        static var readableContentTypes: [UTType] { [.json] }
+        static var writableContentTypes: [UTType] { [.json] }
+        
+        var prompts: [SavedPrompt]
+        
+        init(prompts: [SavedPrompt]) {
+            self.prompts = prompts
+        }
+        
+        required init(configuration: ReadConfiguration) throws {
+            guard let data = configuration.file.regularFileContents,
+                  let prompts = try? JSONDecoder().decode([SavedPrompt].self, from: data)
+            else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            self.prompts = prompts
+        }
+        
+        func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+            let data = try JSONEncoder().encode(prompts)
+            return FileWrapper(regularFileWithContents: data)
+        }
+    }
     
     var body: some View {
         TabView(selection: $activeTab) {
@@ -366,6 +397,30 @@ struct SettingsView: View {
                 Spacer()
                 
                 Button(action: {
+                    exportPrompts()
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.up.doc")
+                        Text("Export Prompts")
+                    }
+                }
+                .buttonStyle(BorderlessButtonStyle())
+                .padding(.vertical, 8)
+                .padding(.trailing, 8)
+                
+                Button(action: {
+                    importPrompts()
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.down.doc")
+                        Text("Import Prompts")
+                    }
+                }
+                .buttonStyle(BorderlessButtonStyle())
+                .padding(.vertical, 8)
+                .padding(.trailing, 8)
+                
+                Button(action: {
                     showingPromptEditor = true
                 }) {
                     HStack {
@@ -385,6 +440,35 @@ struct SettingsView: View {
             editingPrompt = nil
         }) {
             promptEditorView(for: nil)
+        }
+        .fileExporter(
+            isPresented: $showingExporter,
+            document: SavedPromptsDocument(prompts: viewModel.savedPrompts),
+            contentType: .json,
+            defaultFilename: "a-instant-prompts"
+        ) { result in
+            if case .success = result {
+                // Successfully exported
+            }
+        }
+        .fileImporter(
+            isPresented: $showingImporter,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let selectedURL = urls.first else { return }
+                loadPrompts(from: selectedURL)
+            case .failure(let error):
+                importErrorMessage = error.localizedDescription
+                showingImportError = true
+            }
+        }
+        .alert("Import Error", isPresented: $showingImportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importErrorMessage)
         }
     }
     
@@ -546,6 +630,49 @@ struct SettingsView: View {
             return URL(string: "https://platform.x.ai/settings/api-keys")
         case .genericOpenAI:
             return URL(string: "https://openrouter.ai/keys")
+        }
+    }
+    
+    private func exportPrompts() {
+        showingExporter = true
+    }
+    
+    private func importPrompts() {
+        showingImporter = true
+    }
+    
+    private func loadPrompts(from url: URL) {
+        guard url.startAccessingSecurityScopedResource() else {
+            importErrorMessage = "Failed to access the file"
+            showingImportError = true
+            return
+        }
+        
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+        
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            let importedPrompts = try decoder.decode([SavedPrompt].self, from: data)
+            
+            // Filter out prompts that already exist (by name)
+            let existingPromptNames = Set(viewModel.savedPrompts.map { $0.name })
+            let newPrompts = importedPrompts.filter { !existingPromptNames.contains($0.name) }
+            
+            if newPrompts.isEmpty {
+                importErrorMessage = "All imported prompts already exist in your collection"
+                showingImportError = true
+                return
+            }
+            
+            // Add only new prompts to existing ones
+            viewModel.savedPrompts.append(contentsOf: newPrompts)
+            viewModel.saveSettings()
+        } catch {
+            importErrorMessage = "Failed to import prompts: \(error.localizedDescription)"
+            showingImportError = true
         }
     }
 } 
