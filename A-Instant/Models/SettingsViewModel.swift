@@ -15,6 +15,14 @@ class SettingsViewModel: ObservableObject {
     @Published var xAIKey: String = ""
     @Published var genericOpenAIKey: String = ""
     @Published var genericOpenAIEndpoint: String = "https://openrouter.ai/api/v1"
+    @Published var lmStudioKey: String = ""
+    @Published var lmStudioEndpoint: String = "http://localhost:1234/v1"
+    @Published var opencodeZenKey: String = "public"
+    @Published var opencodeZenEndpoint: String = "https://opencode.ai/zen/v1"
+    @Published var openRouterKey: String = ""
+    @Published var openRouterEndpoint: String = "https://openrouter.ai/api/v1"
+    @Published var opencodeZenOnlyFreeModels: Bool = false
+    @Published var openRouterOnlyFreeModels: Bool = false
     @Published var autoLaunchOnStartup: Bool = true
     @Published var enableAutomaticUpdates: Bool = true
     @Published var enableDebugLogging: Bool = false
@@ -29,6 +37,9 @@ class SettingsViewModel: ObservableObject {
     @Published var ollamaModel: String = ""
     @Published var xAIModel: String = ""
     @Published var genericOpenAIModel: String = ""
+    @Published var lmStudioModel: String = ""
+    @Published var opencodeZenModel: String = ""
+    @Published var openRouterModel: String = ""
     
     @Published var availableModels: [String] = []
     @Published var isLoadingModels: Bool = false
@@ -95,6 +106,14 @@ class SettingsViewModel: ObservableObject {
         xAIKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.xAIKey) ?? ""
         genericOpenAIKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIKey) ?? ""
         genericOpenAIEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIEndpoint) ?? "https://openrouter.ai/api/v1"
+        lmStudioKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.lmStudioKey) ?? ""
+        lmStudioEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.lmStudioEndpoint) ?? "http://localhost:1234/v1"
+        opencodeZenKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.opencodeZenKey) ?? "public"
+        opencodeZenEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.opencodeZenEndpoint) ?? "https://opencode.ai/zen/v1"
+        openRouterKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.openRouterKey) ?? ""
+        openRouterEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.openRouterEndpoint) ?? "https://openrouter.ai/api/v1"
+        opencodeZenOnlyFreeModels = UserDefaults.standard.bool(forKey: UserDefaultsKeys.opencodeZenOnlyFreeModels)
+        openRouterOnlyFreeModels = UserDefaults.standard.bool(forKey: UserDefaultsKeys.openRouterOnlyFreeModels)
         
         // Load model selections
         openAIModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.openAIModel) ?? ""
@@ -106,6 +125,9 @@ class SettingsViewModel: ObservableObject {
         ollamaModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaModel) ?? ""
         xAIModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.xAIModel) ?? ""
         genericOpenAIModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIModel) ?? ""
+        lmStudioModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.lmStudioModel) ?? ""
+        opencodeZenModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.opencodeZenModel) ?? ""
+        openRouterModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.openRouterModel) ?? ""
         
         // Load saved prompts
         if let data = UserDefaults.standard.data(forKey: UserDefaultsKeys.savedPrompts) {
@@ -159,6 +181,14 @@ class SettingsViewModel: ObservableObject {
         UserDefaults.standard.set(xAIKey, forKey: UserDefaultsKeys.xAIKey)
         UserDefaults.standard.set(genericOpenAIKey, forKey: UserDefaultsKeys.genericOpenAIKey)
         UserDefaults.standard.set(genericOpenAIEndpoint, forKey: UserDefaultsKeys.genericOpenAIEndpoint)
+        UserDefaults.standard.set(lmStudioKey, forKey: UserDefaultsKeys.lmStudioKey)
+        UserDefaults.standard.set(lmStudioEndpoint, forKey: UserDefaultsKeys.lmStudioEndpoint)
+        UserDefaults.standard.set(opencodeZenKey, forKey: UserDefaultsKeys.opencodeZenKey)
+        UserDefaults.standard.set(opencodeZenEndpoint, forKey: UserDefaultsKeys.opencodeZenEndpoint)
+        UserDefaults.standard.set(openRouterKey, forKey: UserDefaultsKeys.openRouterKey)
+        UserDefaults.standard.set(openRouterEndpoint, forKey: UserDefaultsKeys.openRouterEndpoint)
+        UserDefaults.standard.set(opencodeZenOnlyFreeModels, forKey: UserDefaultsKeys.opencodeZenOnlyFreeModels)
+        UserDefaults.standard.set(openRouterOnlyFreeModels, forKey: UserDefaultsKeys.openRouterOnlyFreeModels)
         
         // Save model selections
         UserDefaults.standard.set(openAIModel, forKey: UserDefaultsKeys.openAIModel)
@@ -170,6 +200,9 @@ class SettingsViewModel: ObservableObject {
         UserDefaults.standard.set(ollamaModel, forKey: UserDefaultsKeys.ollamaModel)
         UserDefaults.standard.set(xAIModel, forKey: UserDefaultsKeys.xAIModel)
         UserDefaults.standard.set(genericOpenAIModel, forKey: UserDefaultsKeys.genericOpenAIModel)
+        UserDefaults.standard.set(lmStudioModel, forKey: UserDefaultsKeys.lmStudioModel)
+        UserDefaults.standard.set(opencodeZenModel, forKey: UserDefaultsKeys.opencodeZenModel)
+        UserDefaults.standard.set(openRouterModel, forKey: UserDefaultsKeys.openRouterModel)
         
         // Save prompts
         do {
@@ -260,9 +293,30 @@ class SettingsViewModel: ObservableObject {
                 isLoadingModels = false
                 return
             }
+        case .lmStudio:
+            apiKey = "" // LM Studio doesn't use API keys
+        case .opencodeZen:
+            apiKey = opencodeZenKey.isEmpty ? "public" : opencodeZenKey
+        case .openRouter:
+            apiKey = openRouterKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your OpenRouter API key in the API tab"
+                isLoadingModels = false
+                return
+            }
         }
         
-        aiService.fetchModels(provider: selectedProvider, apiKey: apiKey)
+        var onlyFreeModels = false
+        switch selectedProvider {
+        case .opencodeZen:
+            onlyFreeModels = opencodeZenOnlyFreeModels
+        case .openRouter:
+            onlyFreeModels = openRouterOnlyFreeModels
+        default:
+            onlyFreeModels = false
+        }
+        
+        aiService.fetchModels(provider: selectedProvider, apiKey: apiKey, onlyFreeModels: onlyFreeModels)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -327,6 +381,9 @@ class SettingsViewModel: ObservableObject {
         case .ollama: return "" // Ollama doesn't use API keys
         case .xAI: return xAIKey
         case .genericOpenAI: return genericOpenAIKey
+        case .lmStudio: return "" // LM Studio doesn't use API keys
+        case .opencodeZen: return opencodeZenKey.isEmpty ? "public" : opencodeZenKey
+        case .openRouter: return openRouterKey
         }
     }
     
@@ -350,6 +407,12 @@ class SettingsViewModel: ObservableObject {
             return xAIModel
         case .genericOpenAI:
             return genericOpenAIModel
+        case .lmStudio:
+            return lmStudioModel
+        case .opencodeZen:
+            return opencodeZenModel
+        case .openRouter:
+            return openRouterModel
         }
     }
     
@@ -398,6 +461,15 @@ class SettingsViewModel: ObservableObject {
         case .genericOpenAI:
             genericOpenAIModel = model
             UserDefaults.standard.set(model, forKey: UserDefaultsKeys.genericOpenAIModel)
+        case .lmStudio:
+            lmStudioModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.lmStudioModel)
+        case .opencodeZen:
+            opencodeZenModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.opencodeZenModel)
+        case .openRouter:
+            openRouterModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.openRouterModel)
         }
     }
     

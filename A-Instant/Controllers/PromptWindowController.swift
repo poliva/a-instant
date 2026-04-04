@@ -6,6 +6,7 @@ class PromptWindowController: NSWindowController {
     private var selectedText: String = ""
     private var promptViewModel: PromptViewModel?
     private var originalApplication: NSRunningApplication?
+    private var escapeKeyMonitor: Any?
     
     convenience init() {
         // Get the non-destructive mode setting
@@ -73,6 +74,33 @@ class PromptWindowController: NSWindowController {
             
             // Position window near mouse location
             self.positionWindowNearMouse()
+            
+            // Setup escape key to close the window
+            self.setupEscapeKeyMonitor()
+        }
+    }
+    
+    private func setupEscapeKeyMonitor() {
+        // Remove existing monitor if any
+        if let monitor = escapeKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        
+        escapeKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self = self else { return event }
+            
+            if event.keyCode == 53 { // Escape key
+                self.close()
+                return nil
+            }
+            return event
+        }
+    }
+    
+    private func removeEscapeKeyMonitor() {
+        if let monitor = escapeKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            escapeKeyMonitor = nil
         }
     }
     
@@ -116,6 +144,7 @@ class PromptWindowController: NSWindowController {
 extension PromptWindowController: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         // Clean up resources when window closes
+        removeEscapeKeyMonitor()
         promptViewModel = nil
     }
-} 
+}

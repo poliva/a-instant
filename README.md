@@ -5,7 +5,7 @@ A-Instant is an AI-powered text assistant that enhances productivity by enabling
 ## Key Features
 
 - **Universal**: Works in any application where you can highlight text
-- **Multiple AI Providers**: Supports OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI, Groq, Custom OpenAI-compatible API providers and local models via Ollama
+- **Multiple AI Providers**: Supports OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI, Groq, Opencode Zen, Openrouter, Custom OpenAI-compatible API providers and local models via Ollama and LMStudio
 - **Customizable Activation**: Choose your preferred trigger key (defaults to right shift)
 - **Prompt Library**: Save and reuse complex or frequently used prompts
 

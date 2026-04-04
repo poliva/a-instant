@@ -60,10 +60,19 @@ class PromptViewModel: ObservableObject {
     func loadAvailableProviders() {
         availableProviders = AIProvider.allCases.filter { provider in
             let modelKey = provider.modelUserDefaultsKey
-            let apiKey = provider.apiKeyUserDefaultsKey
-            return UserDefaults.standard.string(forKey: modelKey) != nil && 
-                   UserDefaults.standard.string(forKey: apiKey) != nil &&
-                   !UserDefaults.standard.string(forKey: apiKey)!.isEmpty
+            
+            // For providers that use endpoint instead of API key (e.g., Ollama, LM Studio)
+            if provider.usesEndpointInsteadOfKey {
+                guard let endpointKey = provider.endpointUserDefaultsKey else { return false }
+                return UserDefaults.standard.string(forKey: modelKey) != nil &&
+                       UserDefaults.standard.string(forKey: endpointKey) != nil &&
+                       !UserDefaults.standard.string(forKey: endpointKey)!.isEmpty
+            } else {
+                let apiKey = provider.apiKeyUserDefaultsKey
+                return UserDefaults.standard.string(forKey: modelKey) != nil &&
+                       UserDefaults.standard.string(forKey: apiKey) != nil &&
+                       !UserDefaults.standard.string(forKey: apiKey)!.isEmpty
+            }
         }
     }
     

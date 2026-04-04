@@ -222,12 +222,119 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                
+                if viewModel.selectedProvider == .opencodeZen || viewModel.selectedProvider == .openRouter {
+                    Toggle("Select only free models", isOn: Binding(
+                        get: {
+                            viewModel.selectedProvider == .opencodeZen ? viewModel.opencodeZenOnlyFreeModels : viewModel.openRouterOnlyFreeModels
+                        },
+                        set: { newValue in
+                            if viewModel.selectedProvider == .opencodeZen {
+                                viewModel.opencodeZenOnlyFreeModels = newValue
+                            } else {
+                                viewModel.openRouterOnlyFreeModels = newValue
+                            }
+                        }
+                    ))
+                    .padding(.top, 8)
+                    
+                    Text("When enabled, only shows models with 'free' in the name")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Divider()
                 .padding(.vertical, 10)
             
-            if viewModel.selectedProvider != .ollama && viewModel.selectedProvider != .genericOpenAI {
+            if viewModel.selectedProvider == .ollama {
+                Text("Ollama Endpoint")
+                    .font(.headline)
+                
+                TextField("Endpoint URL", text: $viewModel.ollamaEndpoint)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(.bottom, 10)
+                
+                Text("Enter your Ollama server endpoint (default: http://localhost:11434)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Button(action: {
+                    if let url = URL(string: "https://ollama.com") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 2) {
+                        Text("Get Ollama")
+                            .font(.caption)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.accentColor)
+                .padding(.top, 10)
+            } else if viewModel.selectedProvider == .lmStudio {
+                Text("LM Studio Endpoint")
+                    .font(.headline)
+                
+                TextField("Endpoint URL", text: $viewModel.lmStudioEndpoint)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(.bottom, 10)
+                
+                Text("Enter your LM Studio server endpoint (default: http://localhost:1234/v1)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Button(action: {
+                    if let url = URL(string: "https://lmstudio.ai") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 2) {
+                        Text("Get LM Studio")
+                            .font(.caption)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.accentColor)
+                .padding(.top, 10)
+            } else if viewModel.selectedProvider == .opencodeZen {
+                Text("API Key (optional)")
+                    .font(.headline)
+                
+                TextField("API Key (default: public)", text: $viewModel.opencodeZenKey)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(.bottom, 10)
+                
+                Text("Leave empty to use default key 'public'")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if viewModel.selectedProvider == .openRouter {
+                Text("API Key")
+                    .font(.headline)
+                
+                SecureField("Enter API Key", text: $viewModel.openRouterKey)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(.bottom, 10)
+                
+                Text("Enter your OpenRouter API key")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Button(action: {
+                    if let url = URL(string: "https://openrouter.ai/keys") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    Text("Get API Key")
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.accentColor)
+                .padding(.top, 10)
+            } else if viewModel.selectedProvider != .genericOpenAI {
                 Text("API Key")
                     .font(.headline)
 
@@ -607,6 +714,12 @@ struct SettingsView: View {
             return $viewModel.xAIKey
         case .genericOpenAI:
             return $viewModel.genericOpenAIKey
+        case .lmStudio:
+            return .constant("")
+        case .opencodeZen:
+            return $viewModel.opencodeZenKey
+        case .openRouter:
+            return $viewModel.openRouterKey
         }
     }
     
@@ -629,6 +742,12 @@ struct SettingsView: View {
         case .xAI:
             return URL(string: "https://platform.x.ai/settings/api-keys")
         case .genericOpenAI:
+            return URL(string: "https://openrouter.ai/keys")
+        case .lmStudio:
+            return URL(string: "https://lmstudio.ai")
+        case .opencodeZen:
+            return URL(string: "https://opencode.ai")
+        case .openRouter:
             return URL(string: "https://openrouter.ai/keys")
         }
     }

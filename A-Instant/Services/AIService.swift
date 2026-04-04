@@ -175,6 +175,15 @@ class AIService {
         case .genericOpenAI:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIEndpoint) ?? "https://openrouter.ai/api/v1"
             return sendGenericOpenAIPrompt(text: text, model: model, apiKey: apiKey, endpoint: endpoint)
+        case .lmStudio:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.lmStudioEndpoint) ?? "http://localhost:1234/v1"
+            return sendLMStudioPrompt(text: text, model: model, endpoint: endpoint)
+        case .opencodeZen:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.opencodeZenEndpoint) ?? "https://opencode.ai/zen/v1/chat/completions"
+            return sendOpencodeZenPrompt(text: text, model: model, apiKey: apiKey, endpoint: endpoint)
+        case .openRouter:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.openRouterEndpoint) ?? "https://openrouter.ai/api/v1"
+            return sendGenericOpenAIPrompt(text: text, model: model, apiKey: apiKey, endpoint: endpoint)
         }
     }
     
@@ -206,13 +215,23 @@ class AIService {
         case .genericOpenAI:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIEndpoint) ?? "https://openrouter.ai/api/v1"
             return sendGenericOpenAIPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey, endpoint: endpoint)
+        case .lmStudio:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.lmStudioEndpoint) ?? "http://localhost:1234/v1"
+            return sendLMStudioPrompt(text: text, systemPrompt: systemPrompt, model: model, endpoint: endpoint)
+        case .opencodeZen:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.opencodeZenEndpoint) ?? "https://opencode.ai/zen/v1/chat/completions"
+            return sendOpencodeZenPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey, endpoint: endpoint)
+        case .openRouter:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.openRouterEndpoint) ?? "https://openrouter.ai/api/v1"
+            return sendGenericOpenAIPrompt(text: text, systemPrompt: systemPrompt, model: model, apiKey: apiKey, endpoint: endpoint)
         }
     }
     
     // Method to fetch available models for a provider
     func fetchModels(
         provider: AIProvider,
-        apiKey: String
+        apiKey: String,
+        onlyFreeModels: Bool = false
     ) -> AnyPublisher<[String], AIServiceError> {
         switch provider {
         case .openAI:
@@ -235,6 +254,14 @@ class AIService {
         case .genericOpenAI:
             let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.genericOpenAIEndpoint) ?? "https://openrouter.ai/api/v1"
             return fetchGenericOpenAIModels(apiKey: apiKey, endpoint: endpoint)
+        case .lmStudio:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.lmStudioEndpoint) ?? "http://localhost:1234/v1"
+            return fetchLMStudioModels(endpoint: endpoint)
+        case .opencodeZen:
+            return fetchOpencodeZenModels(apiKey: apiKey, onlyFreeModels: onlyFreeModels)
+        case .openRouter:
+            let endpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.openRouterEndpoint) ?? "https://openrouter.ai/api/v1"
+            return fetchGenericOpenAIModels(apiKey: apiKey, endpoint: endpoint, onlyFreeModels: onlyFreeModels)
         }
     }
     
@@ -616,7 +643,7 @@ class AIService {
             return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
         }
         
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1/models?key=\(apiKey)") else {
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models?key=\(apiKey)") else {
             return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
         }
         
@@ -1410,7 +1437,7 @@ class AIService {
             .eraseToAnyPublisher()
     }
     
-    private func fetchGenericOpenAIModels(apiKey: String, endpoint: String) -> AnyPublisher<[String], AIServiceError> {
+    private func fetchGenericOpenAIModels(apiKey: String, endpoint: String, onlyFreeModels: Bool = false) -> AnyPublisher<[String], AIServiceError> {
         guard !apiKey.isEmpty else {
             return Fail(error: AIServiceError.invalidAPIKey).eraseToAnyPublisher()
         }
@@ -1457,27 +1484,309 @@ class AIService {
                 return AIServiceError.decodingError(error)
             }
             .map { response in
-                // Return all models
-                return response.data
-                    .map { $0.id }
-                    .sorted()
+                let models = response.data.map { $0.id }
+                
+                // Filter models when onlyFreeModels is enabled - only show models with 'free' or 'pickle' in the name
+                if onlyFreeModels {
+                    return models.filter { modelId in
+                        modelId.lowercased().contains("free") || modelId.lowercased().contains("pickle")
+                    }.sorted()
+                }
+                
+                return models.sorted()
             }
             .eraseToAnyPublisher()
     }
+    
+    // MARK: - Response Models
+    
+    struct OpenAIResponse: Decodable {
+        struct Message: Decodable {
+            let content: String
+        }
+        
+        struct Choice: Decodable {
+            let message: Message
+        }
+        
+        let choices: [Choice]
+    }
+    
+    struct OpenAIModelsResponse: Decodable {
+        struct Model: Decodable {
+            let id: String
+        }
+        
+        let data: [Model]
+    }
+    
+    // MARK: - LM Studio
+    
+    private func sendLMStudioPrompt(
+    text: String,
+    systemPrompt: String? = nil,
+    model: String,
+    endpoint: String
+) -> AnyPublisher<String, AIServiceError> {
+    let chatEndpoint = endpoint.hasSuffix("/") ? "\(endpoint)chat/completions" : "\(endpoint)/chat/completions"
+    
+    guard let url = URL(string: chatEndpoint) else {
+        return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+    }
+    
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+    
+    var messages: [[String: Any]] = []
+    
+    if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+        messages.append(["role": "system", "content": systemPrompt])
+    }
+    
+    messages.append(["role": "user", "content": text])
+    
+    let requestBody: [String: Any] = [
+        "model": model,
+        "messages": messages,
+        "stream": false
+    ]
+    
+    do {
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        logRequest(request, provider: "LM Studio", endpoint: "chat/completions")
+    } catch {
+        logError(error, provider: "LM Studio", endpoint: "chat/completions")
+        return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
+    }
+    
+    return URLSession.shared.dataTaskPublisher(for: request)
+        .tryMap { data, response in
+            self.logResponse(data: data, response: response, provider: "LM Studio", endpoint: "chat/completions")
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AIServiceError.invalidResponse
+            }
+            
+            if httpResponse.statusCode != 200 {
+                if let errorString = String(data: data, encoding: .utf8) {
+                    throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                } else {
+                    throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
+                }
+            }
+            
+            return data
+        }
+        .decode(type: OpenAIResponse.self, decoder: JSONDecoder())
+        .map { response in
+            guard let choice = response.choices.first else {
+                return "No response generated"
+            }
+            return self.processAIResponse(choice.message.content)
+        }
+        .mapError { error in
+            self.logError(error, provider: "LM Studio", endpoint: "chat/completions")
+            if let aiError = error as? AIServiceError {
+                return aiError
+            } else if let decodingError = error as? DecodingError {
+                return AIServiceError.decodingError(decodingError)
+            } else {
+                return AIServiceError.unknown(error)
+            }
+        }
+        .eraseToAnyPublisher()
 }
 
-// MARK: - Response Models
+private func fetchLMStudioModels(endpoint: String) -> AnyPublisher<[String], AIServiceError> {
+    let modelsEndpoint = endpoint.hasSuffix("/") ? "\(endpoint)models" : "\(endpoint)/models"
+    
+    guard let url = URL(string: modelsEndpoint) else {
+        return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+    }
+    
+    var request = URLRequest(url: url)
+    request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+    
+    logRequest(request, provider: "LM Studio", endpoint: "models")
+    
+    return URLSession.shared.dataTaskPublisher(for: request)
+        .mapError { AIServiceError.networkError($0) }
+        .tryMap { data, response in
+            self.logResponse(data: data, response: response, provider: "LM Studio", endpoint: "models")
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AIServiceError.unknownError
+            }
+            
+            if httpResponse.statusCode != 200 {
+                if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
+                    throw AIServiceError.apiError(errorMessage)
+                }
+                throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
+            }
+            
+            return data
+        }
+        .decode(type: OpenAIModelsResponse.self, decoder: JSONDecoder())
+        .mapError { error in
+            self.logError(error, provider: "LM Studio", endpoint: "models")
+            if let aiError = error as? AIServiceError {
+                return aiError
+            }
+            return AIServiceError.decodingError(error)
+        }
+        .map { response in
+            return response.data.map { $0.id }.sorted()
+        }
+        .eraseToAnyPublisher()
+}
 
-struct OpenAIResponse: Decodable {
-    struct Message: Decodable {
-        let content: String
+// MARK: - Opencode Zen
+
+private func sendOpencodeZenPrompt(
+    text: String,
+    systemPrompt: String? = nil,
+    model: String,
+    apiKey: String,
+    endpoint: String
+) -> AnyPublisher<String, AIServiceError> {
+    let effectiveApiKey = apiKey.isEmpty ? "public" : apiKey
+    
+    guard let url = URL(string: endpoint) else {
+        return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
     }
     
-    struct Choice: Decodable {
-        let message: Message
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.addValue("Bearer \(effectiveApiKey)", forHTTPHeaderField: "Authorization")
+    request.addValue("cli", forHTTPHeaderField: "x-opencode-client")
+    request.addValue("opencode/local/local/cli", forHTTPHeaderField: "User-Agent")
+    request.addValue("https://opencode.ai/", forHTTPHeaderField: "HTTP-Referer")
+    request.addValue("opencode", forHTTPHeaderField: "X-Title")
+    request.addValue(UUID().uuidString, forHTTPHeaderField: "x-opencode-session")
+    
+    var messages: [[String: Any]] = []
+    
+    if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+        messages.append(["role": "system", "content": systemPrompt])
     }
     
-    let choices: [Choice]
+    messages.append(["role": "user", "content": text])
+    
+    let requestBody: [String: Any] = [
+        "model": model,
+        "messages": messages,
+        "stream": false,
+        "stream_options": ["include_usage": true]
+    ]
+    
+    do {
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        logRequest(request, provider: "Opencode Zen", endpoint: "chat/completions")
+    } catch {
+        logError(error, provider: "Opencode Zen", endpoint: "chat/completions")
+        return Fail(error: AIServiceError.invalidRequestData(error)).eraseToAnyPublisher()
+    }
+    
+    return URLSession.shared.dataTaskPublisher(for: request)
+        .tryMap { data, response in
+            self.logResponse(data: data, response: response, provider: "Opencode Zen", endpoint: "chat/completions")
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AIServiceError.invalidResponse
+            }
+            
+            if httpResponse.statusCode != 200 {
+                if let errorString = String(data: data, encoding: .utf8) {
+                    throw AIServiceError.requestFailed(httpResponse.statusCode, errorString)
+                } else {
+                    throw AIServiceError.requestFailed(httpResponse.statusCode, "Unknown error")
+                }
+            }
+            
+            return data
+        }
+        .decode(type: OpenAIResponse.self, decoder: JSONDecoder())
+        .map { response in
+            guard let choice = response.choices.first else {
+                return "No response generated"
+            }
+            return self.processAIResponse(choice.message.content)
+        }
+        .mapError { error in
+            self.logError(error, provider: "Opencode Zen", endpoint: "chat/completions")
+            if let aiError = error as? AIServiceError {
+                return aiError
+            } else if let decodingError = error as? DecodingError {
+                return AIServiceError.decodingError(decodingError)
+            } else {
+                return AIServiceError.unknown(error)
+            }
+        }
+        .eraseToAnyPublisher()
+}
+
+private func fetchOpencodeZenModels(apiKey: String, onlyFreeModels: Bool = false) -> AnyPublisher<[String], AIServiceError> {
+    let effectiveApiKey = apiKey.isEmpty ? "public" : apiKey
+    let modelsEndpoint = "https://opencode.ai/zen/v1/models"
+    
+    guard let url = URL(string: modelsEndpoint) else {
+        return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
+    }
+    
+    var request = URLRequest(url: url)
+    request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.addValue("Bearer \(effectiveApiKey)", forHTTPHeaderField: "Authorization")
+    request.addValue("cli", forHTTPHeaderField: "x-opencode-client")
+    request.addValue("opencode/local/local/cli", forHTTPHeaderField: "User-Agent")
+    request.addValue("https://opencode.ai/", forHTTPHeaderField: "HTTP-Referer")
+    request.addValue("opencode", forHTTPHeaderField: "X-Title")
+    
+    logRequest(request, provider: "Opencode Zen", endpoint: "models")
+    
+    return URLSession.shared.dataTaskPublisher(for: request)
+        .mapError { AIServiceError.networkError($0) }
+        .tryMap { data, response in
+            self.logResponse(data: data, response: response, provider: "Opencode Zen", endpoint: "models")
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AIServiceError.unknownError
+            }
+            
+            if httpResponse.statusCode != 200 {
+                if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let errorMessage = (errorJson["error"] as? [String: Any])?["message"] as? String {
+                    throw AIServiceError.apiError(errorMessage)
+                }
+                throw AIServiceError.apiError("Status code: \(httpResponse.statusCode)")
+            }
+            
+            return data
+        }
+        .decode(type: OpenAIModelsResponse.self, decoder: JSONDecoder())
+        .mapError { error in
+            self.logError(error, provider: "Opencode Zen", endpoint: "models")
+            if let aiError = error as? AIServiceError {
+                return aiError
+            }
+            return AIServiceError.decodingError(error)
+        }
+        .map { response in
+            let models = response.data.map { $0.id }
+            
+            // Filter models when onlyFreeModels is enabled - only show models with 'free' or 'pickle' in the name
+            if onlyFreeModels {
+                return models.filter { modelId in
+                    modelId.lowercased().contains("free") || modelId.lowercased().contains("pickle")
+                }.sorted()
+            }
+            
+            return models.sorted()
+        }
+        .eraseToAnyPublisher()
 }
 
 struct AnthropicResponse: Decodable {
@@ -1518,14 +1827,6 @@ struct GoogleAIResponse: Decodable {
 }
 
 // MARK: - Model Response Types
-
-struct OpenAIModelsResponse: Decodable {
-    let data: [OpenAIModel]
-}
-
-struct OpenAIModel: Decodable {
-    let id: String
-}
 
 struct AnthropicModelsResponse: Decodable {
     struct Model: Decodable {
@@ -1594,4 +1895,4 @@ struct MistralModelsResponse: Decodable {
 
 struct Capabilities: Decodable {
     let completion_chat: Bool
-} 
+}}

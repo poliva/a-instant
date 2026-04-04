@@ -29,6 +29,15 @@ struct UserDefaultsKeys {
     static let enableAutomaticUpdates = "enableAutomaticUpdates"
     static let enableDebugLogging = "enableDebugLogging"
     static let nonDestructiveMode = "nonDestructiveMode"
+    static let lmStudioKey = "lmStudioKey"
+    static let lmStudioModel = "lmStudioModel"
+    static let lmStudioEndpoint = "lmStudioEndpoint"
+    static let opencodeZenKey = "opencodeZenKey"
+    static let opencodeZenModel = "opencodeZenModel"
+    static let opencodeZenEndpoint = "opencodeZenEndpoint"
+    static let openRouterKey = "openRouterKey"
+    static let openRouterModel = "openRouterModel"
+    static let openRouterEndpoint = "openRouterEndpoint"
     
     // Cached model lists
     static let cachedOpenAIModels = "cachedOpenAIModels"
@@ -40,6 +49,11 @@ struct UserDefaultsKeys {
     static let cachedOllamaModels = "cachedOllamaModels"
     static let cachedXAIModels = "cachedXAIModels"
     static let cachedGenericOpenAIModels = "cachedGenericOpenAIModels"
+    static let cachedLMStudioModels = "cachedLMStudioModels"
+    static let cachedOpencodeZenModels = "cachedOpencodeZenModels"
+    static let cachedOpenRouterModels = "cachedOpenRouterModels"
+    static let opencodeZenOnlyFreeModels = "opencodeZenOnlyFreeModels"
+    static let openRouterOnlyFreeModels = "openRouterOnlyFreeModels"
 }
 
 enum AIProvider: String, CaseIterable, Identifiable {
@@ -52,6 +66,9 @@ enum AIProvider: String, CaseIterable, Identifiable {
     case ollama = "Ollama"
     case xAI = "xAI"
     case genericOpenAI = "Custom"
+    case lmStudio = "LM Studio"
+    case opencodeZen = "Opencode Zen"
+    case openRouter = "OpenRouter"
     
     var id: String { self.rawValue }
     
@@ -66,6 +83,9 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .ollama: return UserDefaultsKeys.ollamaEndpoint
         case .xAI: return UserDefaultsKeys.xAIKey
         case .genericOpenAI: return UserDefaultsKeys.genericOpenAIKey
+        case .lmStudio: return UserDefaultsKeys.lmStudioKey
+        case .opencodeZen: return UserDefaultsKeys.opencodeZenKey
+        case .openRouter: return UserDefaultsKeys.openRouterKey
         }
     }
     
@@ -80,6 +100,9 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .ollama: return UserDefaultsKeys.ollamaModel
         case .xAI: return UserDefaultsKeys.xAIModel
         case .genericOpenAI: return UserDefaultsKeys.genericOpenAIModel
+        case .lmStudio: return UserDefaultsKeys.lmStudioModel
+        case .opencodeZen: return UserDefaultsKeys.opencodeZenModel
+        case .openRouter: return UserDefaultsKeys.openRouterModel
         }
     }
     
@@ -94,6 +117,26 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .ollama: return UserDefaultsKeys.cachedOllamaModels
         case .xAI: return UserDefaultsKeys.cachedXAIModels
         case .genericOpenAI: return UserDefaultsKeys.cachedGenericOpenAIModels
+        case .lmStudio: return UserDefaultsKeys.cachedLMStudioModels
+        case .opencodeZen: return UserDefaultsKeys.cachedOpencodeZenModels
+        case .openRouter: return UserDefaultsKeys.cachedOpenRouterModels
+        }
+    }
+    
+    var usesEndpointInsteadOfKey: Bool {
+        switch self {
+        case .ollama, .lmStudio: return true
+        default: return false
+        }
+    }
+    
+    var endpointUserDefaultsKey: String? {
+        switch self {
+        case .ollama: return UserDefaultsKeys.ollamaEndpoint
+        case .lmStudio: return UserDefaultsKeys.lmStudioEndpoint
+        case .opencodeZen: return UserDefaultsKeys.opencodeZenEndpoint
+        case .openRouter: return UserDefaultsKeys.openRouterEndpoint
+        default: return nil
         }
     }
 }
