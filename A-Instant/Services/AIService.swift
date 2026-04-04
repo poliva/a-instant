@@ -567,7 +567,7 @@ class AIService {
         model: String,
         apiKey: String
     ) -> AnyPublisher<String, AIServiceError> {
-        let baseURL = "https://generativelanguage.googleapis.com/v1/models/"
+        let baseURL = "https://generativelanguage.googleapis.com/v1beta/models/"
         guard let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
               let url = URL(string: "\(baseURL)\(encodedModel):generateContent?key=\(apiKey)") else {
             return Fail(error: AIServiceError.invalidURL).eraseToAnyPublisher()
