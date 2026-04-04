@@ -409,6 +409,35 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                     
                 }
+            } else if viewModel.selectedProvider == .ollamaCloud {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("API Key")
+                        .font(.headline)
+                    
+                    SecureField("Enter API Key", text: $viewModel.ollamaCloudKey)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.bottom, 10)
+                    
+                    Text("Enter your Ollama Cloud API key")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        if let url = URL(string: "https://ollama.com/settings/keys") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        HStack(spacing: 2) {
+                            Text("Get API Key")
+                                .font(.caption)
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption)
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .foregroundColor(.accentColor)
+                    .padding(.top, 10)
+                }
             }
             
             Spacer()
@@ -720,6 +749,8 @@ struct SettingsView: View {
             return $viewModel.opencodeZenKey
         case .openRouter:
             return $viewModel.openRouterKey
+        case .ollamaCloud:
+            return $viewModel.ollamaCloudKey
         }
     }
     
@@ -749,6 +780,8 @@ struct SettingsView: View {
             return URL(string: "https://opencode.ai")
         case .openRouter:
             return URL(string: "https://openrouter.ai/keys")
+        case .ollamaCloud:
+            return URL(string: "https://ollama.com/settings/keys")
         }
     }
     

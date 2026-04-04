@@ -38,6 +38,8 @@ struct UserDefaultsKeys {
     static let openRouterKey = "openRouterKey"
     static let openRouterModel = "openRouterModel"
     static let openRouterEndpoint = "openRouterEndpoint"
+    static let ollamaCloudKey = "ollamaCloudKey"
+    static let ollamaCloudModel = "ollamaCloudModel"
     
     // Cached model lists
     static let cachedOpenAIModels = "cachedOpenAIModels"
@@ -52,6 +54,7 @@ struct UserDefaultsKeys {
     static let cachedLMStudioModels = "cachedLMStudioModels"
     static let cachedOpencodeZenModels = "cachedOpencodeZenModels"
     static let cachedOpenRouterModels = "cachedOpenRouterModels"
+    static let cachedOllamaCloudModels = "cachedOllamaCloudModels"
     static let opencodeZenOnlyFreeModels = "opencodeZenOnlyFreeModels"
     static let openRouterOnlyFreeModels = "openRouterOnlyFreeModels"
 }
@@ -69,6 +72,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     case lmStudio = "LM Studio"
     case opencodeZen = "Opencode Zen"
     case openRouter = "OpenRouter"
+    case ollamaCloud = "Ollama Cloud"
     
     var id: String { self.rawValue }
     
@@ -86,6 +90,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .lmStudio: return UserDefaultsKeys.lmStudioKey
         case .opencodeZen: return UserDefaultsKeys.opencodeZenKey
         case .openRouter: return UserDefaultsKeys.openRouterKey
+        case .ollamaCloud: return UserDefaultsKeys.ollamaCloudKey
         }
     }
     
@@ -103,6 +108,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .lmStudio: return UserDefaultsKeys.lmStudioModel
         case .opencodeZen: return UserDefaultsKeys.opencodeZenModel
         case .openRouter: return UserDefaultsKeys.openRouterModel
+        case .ollamaCloud: return UserDefaultsKeys.ollamaCloudModel
         }
     }
     
@@ -120,12 +126,14 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .lmStudio: return UserDefaultsKeys.cachedLMStudioModels
         case .opencodeZen: return UserDefaultsKeys.cachedOpencodeZenModels
         case .openRouter: return UserDefaultsKeys.cachedOpenRouterModels
+        case .ollamaCloud: return UserDefaultsKeys.cachedOllamaCloudModels
         }
     }
     
     var usesEndpointInsteadOfKey: Bool {
         switch self {
         case .ollama, .lmStudio: return true
+        case .ollamaCloud: return false
         default: return false
         }
     }

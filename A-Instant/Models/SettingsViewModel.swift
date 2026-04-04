@@ -28,6 +28,9 @@ class SettingsViewModel: ObservableObject {
     @Published var enableDebugLogging: Bool = false
     @Published var nonDestructiveMode: Bool = false
     
+    @Published var ollamaCloudKey: String = ""
+    @Published var ollamaCloudModel: String = ""
+    
     @Published var openAIModel: String = ""
     @Published var anthropicModel: String = ""
     @Published var googleModel: String = ""
@@ -114,6 +117,8 @@ class SettingsViewModel: ObservableObject {
         openRouterEndpoint = UserDefaults.standard.string(forKey: UserDefaultsKeys.openRouterEndpoint) ?? "https://openrouter.ai/api/v1"
         opencodeZenOnlyFreeModels = UserDefaults.standard.bool(forKey: UserDefaultsKeys.opencodeZenOnlyFreeModels)
         openRouterOnlyFreeModels = UserDefaults.standard.bool(forKey: UserDefaultsKeys.openRouterOnlyFreeModels)
+        ollamaCloudKey = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaCloudKey) ?? ""
+        ollamaCloudModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaCloudModel) ?? ""
         
         // Load model selections
         openAIModel = UserDefaults.standard.string(forKey: UserDefaultsKeys.openAIModel) ?? ""
@@ -189,6 +194,8 @@ class SettingsViewModel: ObservableObject {
         UserDefaults.standard.set(openRouterEndpoint, forKey: UserDefaultsKeys.openRouterEndpoint)
         UserDefaults.standard.set(opencodeZenOnlyFreeModels, forKey: UserDefaultsKeys.opencodeZenOnlyFreeModels)
         UserDefaults.standard.set(openRouterOnlyFreeModels, forKey: UserDefaultsKeys.openRouterOnlyFreeModels)
+        UserDefaults.standard.set(ollamaCloudKey, forKey: UserDefaultsKeys.ollamaCloudKey)
+        UserDefaults.standard.set(ollamaCloudModel, forKey: UserDefaultsKeys.ollamaCloudModel)
         
         // Save model selections
         UserDefaults.standard.set(openAIModel, forKey: UserDefaultsKeys.openAIModel)
@@ -304,6 +311,13 @@ class SettingsViewModel: ObservableObject {
                 isLoadingModels = false
                 return
             }
+        case .ollamaCloud:
+            apiKey = ollamaCloudKey
+            if apiKey.isEmpty {
+                modelLoadError = "Please enter your Ollama Cloud API key in the API tab"
+                isLoadingModels = false
+                return
+            }
         }
         
         var onlyFreeModels = false
@@ -384,6 +398,7 @@ class SettingsViewModel: ObservableObject {
         case .lmStudio: return "" // LM Studio doesn't use API keys
         case .opencodeZen: return opencodeZenKey.isEmpty ? "public" : opencodeZenKey
         case .openRouter: return openRouterKey
+        case .ollamaCloud: return ollamaCloudKey
         }
     }
     
@@ -413,6 +428,8 @@ class SettingsViewModel: ObservableObject {
             return opencodeZenModel
         case .openRouter:
             return openRouterModel
+        case .ollamaCloud:
+            return ollamaCloudModel
         }
     }
     
@@ -470,6 +487,9 @@ class SettingsViewModel: ObservableObject {
         case .openRouter:
             openRouterModel = model
             UserDefaults.standard.set(model, forKey: UserDefaultsKeys.openRouterModel)
+        case .ollamaCloud:
+            ollamaCloudModel = model
+            UserDefaults.standard.set(model, forKey: UserDefaultsKeys.ollamaCloudModel)
         }
     }
     
