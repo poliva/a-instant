@@ -713,7 +713,7 @@ struct SettingsView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             
-            Text("© 2025 Pau Oliva Fora")
+            Text("© 2025-2026 Pau Oliva Fora")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .padding(.top, 30)
